@@ -1,0 +1,86 @@
+---
+- hosts: master
+  connection: local
+  tasks: 
+
+    - name: Reset cluster
+      become: true
+      command:
+        cmd: "kubeadm reset --force"
+    - name: Copy cluster config
+      ansible.builtin.copy:
+        # TODO: I think the host name should work for controlPlaneEndpoint
+        # but it does not.
+        content: "{{ lookup('file', 'k8s/config.yml') | regex_replace('master_ip', master_ip) }}"
+        dest: "{{ config_dir }}/config.yml"
+    - name: Initialize cluster
+      # NOTE: Note from flannel setup doc on github
+      # https://github.com/flannel-io/flannel/blob/master/Documentation/kubernetes.md
+      #   If kubeadm is used, then pass
+      #   --pod-network-cidr=10.244.0.0/16 to kubeadm init to ensure that the
+      #   podCIDR is set.
+      #
+      # This translates to networking: podSubnet: in the config.yml file.
+      become: true
+      command:
+        # FIXME: Can't use config_dir here because we are root
+        cmd: "kubeadm init --config ~{{ ansible_env.USER }}/.lfedge/config.yml"
+      register: kube_init
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: ~/.kube
+        state: directory
+    - name: Copy completed config to .kube/config
+      become: true
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "~{{ ansible_env.USER }}/.kube/config"
+        owner: "{{ ansible_env.USER }}"
+        group: "{{ ansible_user_gid | string }}"
+        remote_src: yes
+    - name: Copy additional Kubernetes config
+      ansible.builtin.copy:
+        src: k8s/fix.yml
+        dest: "{{ config_dir }}/"
+    - name: Apply additional config
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/fix.yml"
+        namespace: default
+        state: present
+    - name: Copy default pod security config
+      ansible.builtin.copy:
+        src: k8s/default-psp.yml
+        dest: "{{ config_dir }}/"
+    - name: Apply default pod security config
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/default-psp.yml"
+        namespace: default
+        state: present
+    - name: Copy system pod security config
+      ansible.builtin.copy:
+        src: k8s/system-psp.yml
+        dest: "{{ config_dir }}/"
+    - name: Apply system pod security config
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/system-psp.yml"
+        namespace: default
+        state: present
+    - name: Start pod network
+      # NOTE: Flannel config is downloaded in master_install
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/kube-flannel-private.yml"
+        state: present
+    - name: Copy local storage config
+      ansible.builtin.copy:
+        src: k8s/local-storage.yml
+        dest: "{{ config_dir }}/"
+    - name: Create local storage class
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/local-storage.yml"
+        namespace: default
+        state: present

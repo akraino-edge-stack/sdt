@@ -1,0 +1,6 @@
+# COPYRIGHT 2022 FUJITSU LIMITED
+#
+# SPDX-License-Identifier: Apache-2.0
+FROM kong:2.5.1
+
+COPY ./globalpatches.lua /usr/local/share/lua/5.1/kong/

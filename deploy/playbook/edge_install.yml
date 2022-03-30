@@ -1,0 +1,98 @@
+---
+- hosts: edge_nodes
+  tasks: 
+    - name: Add master to /etc/hosts
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
+        line: "{{ master_ip }} master"
+        insertbefore: BOF
+    - name: Install required packages to edge nodes
+      become: true
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - docker.io
+    - name: Ensure the docker group exists
+      become: true
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: Make sure the admin user is in the docker group
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        append: yes
+        groups: docker
+        update_password: on_create
+    - name: Make sure certificate directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/docker/certs.d/master:5000
+        state: directory
+        mode: '0755'
+    - name: Copy the registry certificate
+      become: true
+      ansible.builtin.copy:
+        # NOTE: This assumes the script is running on master
+        # NOTE: start_registry must have been run at least once to create
+        # the certificate
+        src: /etc/docker/certs.d/master:5000/registry.crt
+        dest: /etc/docker/certs.d/master:5000/registry.crt
+    - name: Copy the CA certificate
+      become: true
+      ansible.builtin.copy:
+        # NOTE: This assumes the script is running on master
+        # NOTE: start_registry must have been run at least once to create
+        # the certificate
+        src: /usr/local/share/ca-certificates/master.crt
+        dest: /usr/local/share/ca-certificates/master.crt
+    - name: Enable the CA certificate
+      become: true
+      ansible.builtin.command:
+        cmd: "update-ca-certificates"
+    - name: Configure docker # includes required settings for k8s
+      become: true
+      ansible.builtin.copy:
+        src: docker/daemon.json
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      register: docker_conf
+    - name: Restart the docker service
+      become: true
+      service:
+        name: docker
+        state: restarted
+      when: docker_conf.changed
+
+    - name: Setup Kubernetes key
+      become: true
+      get_url:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+    - name: Setup Kubernetes apt source
+      become: true
+      ansible.builtin.lineinfile:
+        line: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+        path: /etc/apt/sources.list.d/kubernetes.list
+        create: yes
+    - name: Install Kubernetes
+      become: true
+      apt:
+        update_cache: yes
+        pkg:
+          - kubectl=1.22*
+          - kubelet=1.22*
+          - kubeadm=1.22*
+      # NOTE: The following requirements for k8s are met by default
+      # sysctl net.bridge.bridge-nf-call-iptables = 1
+      # modprobe br_netfilter

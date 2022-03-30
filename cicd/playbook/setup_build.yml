@@ -1,0 +1,96 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    # go_url: https://golang.org/dl/
+    go_url: https://dl.google.com/go/
+    go_pkg: go1.16.10.linux-amd64.tar.gz
+    go_dst: /usr/local
+  vars_files:
+    # Pick up master_ip and registry_name from deploy playbook folder
+    - ../../deploy/playbook/group_vars/all/master.yml
+
+  tasks: 
+    - name: Install build tools and required libraries
+      become: true
+      apt:
+        pkg:
+          - make
+          - build-essential
+          - python3-pip
+          - pkg-config
+          - libzmq3-dev
+          - docker.io
+          - qemu
+          - binfmt-support
+          - qemu-user-static
+    - name: Ensure the docker group exists
+      become: true
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: Make sure the build user is in the docker group
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_env.USER }}"
+        append: yes
+        groups: docker
+        update_password: on_create
+    - name: Install Docker for Python # required for community.docker
+      pip:
+        state: present
+        name: docker
+    - name: Test if community.docker is installed
+      stat:
+        path: ~/.ansible/collections/ansible_collections/community/docker/MANIFEST.json
+      register: docker_collection
+    - name: Install the community.docker collection
+      # Required for pushing built images to the registry
+      command:
+        cmd: ansible-galaxy collection install community.docker
+      when: not docker_collection.stat.exists
+
+    - name: Download Go
+      # Not strictly necessary if only containers are built
+      become: true
+      get_url:
+        url: "{{ go_url }}{{ go_pkg }}"
+        dest: "{{ go_dst }}"
+      register: go_download
+    - name: Remove existing Go
+      become: true
+      ansible.builtin.file:
+        path: "{{ go_dst }}/go"
+        state: absent
+      when: go_download.changed
+    - name: Install Go
+      become: true
+      ansible.builtin.unarchive:
+        src: "{{ go_dst }}/{{ go_pkg }}"
+        dest: "{{ go_dst }}"
+        remote_src: yes
+      when: go_download.changed
+    - name: Setup Go environment
+      become: true
+      ansible.builtin.copy:
+        content: >
+          export PATH=$PATH:/usr/local/go/bin
+        dest: /etc/profile.d/go.sh
+
+    - name: Create EdgeX build directory
+      ansible.builtin.file:
+        path: "~/edgexfoundry"
+        state: directory
+
+    - name: Add master node to /etc/hosts (if master is not hostname)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
+        line: "{{ master_ip }} master"
+        insertbefore: BOF
+      when: (ansible_facts['nodename'] != "master")
+

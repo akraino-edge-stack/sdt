@@ -1,0 +1,38 @@
+---
+- hosts: master
+  connection: local
+  vars:
+    cni_interfaces:
+      - cni0
+      - flannel.1
+
+  tasks: 
+    - name: Reset cluster
+      become: true
+      command:
+        cmd: "kubeadm reset --force"
+
+    - name: Remove CNI config
+      become: true
+      ansible.builtin.file:
+        path: /etc/cni/net.d/10-flannel.conflist
+        state: absent
+    - name: Check if CNI interfaces exist
+      become: true
+      command:
+        cmd: "ip link show {{ item }}"
+      ignore_errors: yes
+      register: cni_show
+      loop: "{{ cni_interfaces }}"
+    - name: Set CNI interfaces down
+      become: true
+      command:
+        cmd: "ip link set {{ item.item }} down"
+      when: item.rc == 0
+      loop: "{{ cni_show.results }}"
+    - name: Delete CNI interfaces
+      become: true
+      command:
+        cmd: "ip link delete {{ item.item }}"
+      when: item.rc == 0
+      loop: "{{ cni_show.results }}"

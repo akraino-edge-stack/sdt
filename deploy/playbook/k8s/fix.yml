@@ -1,0 +1,23 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "false"
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: system:public-info-viewer
+rules:
+- nonResourceURLs:
+  - /healthz
+  - /livez
+  - /readyz
+  verbs:
+  - get
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: default
+automountServiceAccountToken: false

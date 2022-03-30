@@ -1,0 +1,8 @@
+[Unit]
+Description=Transmit DHT-11 sensor readings via LRA-1
+
+[Service]
+ExecStart=/usr/bin/python /home/pi/dht2lra.py
+
+[Install]
+WantedBy=multi-user.target

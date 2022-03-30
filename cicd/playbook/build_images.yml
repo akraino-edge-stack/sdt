@@ -1,0 +1,110 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    base_images:
+      - golang:1.16-alpine3.14
+      - alpine:3.14
+      - kong:2.5.1
+
+  tasks: 
+    - name: Copy sync-app source
+      ansible.builtin.copy:
+        src:  "../../edgex/sync-app/"
+        dest: "~/edgexfoundry/sync-app"
+
+    - name: Copy device-lora source
+      ansible.builtin.copy:
+        src:  "../../edgex/device-lora/"
+        dest: "~/edgexfoundry/device-lora"
+
+    - name: Copy shim-security-bootstrapper source
+      ansible.builtin.copy:
+        src:  "../../edgex/security-bootstrapper/"
+        dest: "~/edgexfoundry/shim-security-bootstrapper"
+
+    - name: Copy shim-security-secretstore-setup source
+      ansible.builtin.copy:
+        src:  "../../edgex/security-secretstore-setup/"
+        dest: "~/edgexfoundry/shim-security-secretstore-setup"
+
+    - name: Copy Kong patch
+      ansible.builtin.copy:
+        src:  "../../edgex/kong/"
+        dest: "~/edgexfoundry/kong"
+
+    - name: Remove existing base images
+      # This needs to be done in case images are present with the wrong
+      # platform, as docker will not replace them automatically.
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+        source: local
+      loop: "{{ base_images }}"
+
+    - name: Make sync-app amd64 image
+      make:
+        chdir: "~/edgexfoundry/sync-app"
+        target: docker
+
+    - name: Make device-lora amd64 image
+      make:
+        chdir: "~/edgexfoundry/device-lora"
+        target: docker
+
+    - name: Make shim-security-bootstrapper amd64 image
+      make:
+        chdir: "~/edgexfoundry/shim-security-bootstrapper"
+        target: docker
+
+    - name: Make shim-security-secretstore-setup amd64 image
+      make:
+        chdir: "~/edgexfoundry/shim-security-secretstore-setup"
+        target: docker
+
+    - name: Make Kong patched amd64 image
+      make:
+        chdir: "~/edgexfoundry/kong"
+        target: docker
+
+    - name: Remove amd64 base images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+        source: local
+      loop: "{{ base_images }}"
+
+    - name: Make sync-app arm64 image
+      make:
+        chdir: "~/edgexfoundry/sync-app"
+        target: docker-arm
+
+    - name: Make device-lora arm64 image
+      make:
+        chdir: "~/edgexfoundry/device-lora"
+        target: docker-arm
+
+    - name: Make shim-security-bootstrapper arm64 image
+      make:
+        chdir: "~/edgexfoundry/shim-security-bootstrapper"
+        target: docker-arm
+
+    - name: Make shim-security-secretstore-setup arm64 image
+      make:
+        chdir: "~/edgexfoundry/shim-security-secretstore-setup"
+        target: docker-arm
+
+    - name: Make Kong patched arm64 image
+      make:
+        chdir: "~/edgexfoundry/kong"
+        target: docker-arm
+
+    - name: Remove arm64 base images
+      # Just so we don't mess up manual builds
+      # (Remove, here, only means untagging them)
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+        source: local
+      loop: "{{ base_images }}"
+

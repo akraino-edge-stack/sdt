@@ -1,0 +1,51 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    images:
+      - edgexfoundry/sync-app
+      - edgexfoundry/device-lora
+      - edgexfoundry/shim-security-bootstrapper
+      - edgexfoundry/shim-security-secretstore-setup
+      - kong-patched
+  vars_files:
+    - ../../deploy/playbook/group_vars/all/master.yml
+
+  tasks:
+    - name: Push amd64 images to registry
+      community.docker.docker_image:
+        name: "{{ item }}-amd64:latest"
+        repository: "{{ registry_name }}/{{ item }}-amd64:latest"
+        push: yes
+        source: local
+        force_tag: yes
+      loop: "{{ images }}"
+    - name: Push arm64 images to registry
+      community.docker.docker_image:
+        name: "{{ item }}-arm64:latest"
+        repository: "{{ registry_name }}/{{ item }}-arm64:latest"
+        push: yes
+        source: local
+        force_tag: yes
+      loop: "{{ images }}"
+
+    - name: Remove existing local multi-architecture manifests
+      # In case this play failed earlier
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
+      ignore_errors: yes
+      loop: "{{ images }}"
+    - name: Create multi-architecture manifest for images
+      # FIXME: This will update the manifests every time the script runs
+      # whether there is a real change or not.
+      command:
+        cmd: "docker manifest create {{ registry_name }}/{{ item }} {{ registry_name }}/{{ item }}-amd64 {{ registry_name }}/{{ item }}-arm64"
+      loop: "{{ images }}"
+    - name: Push multi-architecture manifests for images
+      command:
+        cmd: "docker manifest push {{ registry_name }}/{{ item }}"
+      loop: "{{ images }}"
+    - name: Remove local multi-architecture manifests for images
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
+      loop: "{{ images }}"

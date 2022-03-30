@@ -1,0 +1,8 @@
+---
+- hosts: master
+  connection: local
+  tasks: 
+    - name: Stop Docker Registry
+      community.docker.docker_container:
+        name: registry
+        state: stopped

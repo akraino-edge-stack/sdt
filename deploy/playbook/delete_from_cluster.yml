@@ -1,0 +1,52 @@
+---
+- hosts: master
+  connection: local
+  tasks: 
+    - name: Drain edge nodes
+      command:
+        cmd: "kubectl drain {{ item }} --delete-emptydir-data --force --ignore-daemonsets"
+      loop: "{{ query('inventory_hostnames', 'edge_nodes') }}"
+
+- hosts: edge_nodes
+  vars:
+    cni_interfaces:
+      - cni0
+      - flannel.1
+  tasks:
+    - name: Reset cluster setup on edge nodes
+      become: true
+      command:
+        cmd: "kubeadm reset --force"
+    - name: Remove CNI config
+      become: true
+      ansible.builtin.file:
+        path: /etc/cni/net.d/10-flannel.conflist
+        state: absent
+    - name: Check if CNI interfaces exist
+      become: true
+      command:
+        cmd: "ip link show {{ item }}"
+      ignore_errors: yes
+      register: cni_show
+      loop: "{{ cni_interfaces }}"
+    - name: Set CNI interfaces down
+      become: true
+      command:
+        cmd: "ip link set {{ item.item }} down"
+      when: item.rc == 0
+      loop: "{{ cni_show.results }}"
+    - name: Delete CNI interfaces
+      become: true
+      command:
+        cmd: "ip link delete {{ item.item }}"
+      when: item.rc == 0
+      loop: "{{ cni_show.results }}"
+
+- hosts: master
+  connection: local
+  tasks:
+    - name: Delete edge nodes
+      command:
+        cmd: "kubectl delete node {{ item }}"
+      loop: "{{ query('inventory_hostnames', 'edge_nodes') }}"
+

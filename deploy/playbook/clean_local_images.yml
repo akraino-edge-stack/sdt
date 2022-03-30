@@ -1,0 +1,105 @@
+---
+- hosts: master
+  connection: local
+  vars:
+    edgex_deployments: "{{ lookup('fileglob', '../../edgex/deployments/*.yaml', wantlist=true) }}"
+
+  tasks: 
+    - name: Get EdgeX image names
+      set_fact:
+        edgex_raw_images: "{{ edgex_raw_images | default([]) + (lookup('file',item) | regex_findall('image:\\s*(\\S*)', '\\1')) }}"
+      loop: "{{ edgex_deployments }}"
+    - name: Eliminate duplicate image names
+      set_fact:
+        edgex_images: "{{ edgex_raw_images | unique }}"
+    - name: Get EdgeX foundry image names
+      set_fact:
+        edgex_foundry_images: "{{ edgex_foundry_images | default([]) + [item] }}"
+      when: item is search('edgexfoundry')
+      loop: "{{ edgex_images }}"
+    - name: Clean pulled EdgeX images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+        source: local
+      loop: "{{ edgex_images }}"
+    - name: Clean EdgeX arm64 foundry images
+      # These images are not multi-architecture and need a
+      # -arm64 suffix on the name.
+      community.docker.docker_image:
+        name: "{{ item | regex_replace(':([^:]+)$','-arm64:\\1') }}"
+        state: absent
+        source: local
+      loop: "{{ edgex_foundry_images }}"
+    - name: Clean EdgeX amd64 images tagged for local registry
+      community.docker.docker_image:
+        name: "{{ registry_name }}/{{ item }}-amd64"
+        state: absent
+        source: local
+      loop: "{{ edgex_images }}"
+    - name: Clean EdgeX arm64 images tagged for local registry
+      community.docker.docker_image:
+        name: "{{ registry_name }}/{{ item }}-arm64"
+        state: absent
+        source: local
+      loop: "{{ edgex_images }}"
+
+    - name: Get the list of K8s images
+      command:
+        cmd: "kubeadm config images list"
+      register: k8s_images
+    - name: Get the Kubernetes local image names
+      command:
+        cmd: "kubeadm config images list --config {{ config_dir }}/config.yml"
+      register: k8s_local_images
+    - name: Clean pulled K8s images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+        source: local
+      loop: "{{ k8s_images.stdout.splitlines() }}"
+    - name: Clean K8s images tagged for local registry
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+        source: local
+      loop: "{{ k8s_local_images.stdout.splitlines() }}"
+    - name: Clean K8s amd64 images tagged for local registry
+      # NOTE: Most of these and (the arm64 ones) won't exist anyway
+      community.docker.docker_image:
+        name: "{{ item }}-amd64"
+        state: absent
+        source: local
+      loop: "{{ k8s_local_images.stdout.splitlines() }}"
+    - name: Clean K8s arm64 images tagged for local registry
+      community.docker.docker_image:
+        name: "{{ item }}-arm64"
+        state: absent
+        source: local
+      loop: "{{ k8s_local_images.stdout.splitlines() }}"
+
+    - name: Get Flannel config
+      ansible.builtin.slurp:
+        src: "{{ config_dir }}/kube-flannel.yml"
+      register: flannel_slurp
+    - name: Get Flannel image names
+      set_fact:
+        flannel_images: "{{ flannel_slurp.content | b64decode | regex_findall('image:\\s*(\\S*)', '\\1') | unique }}"
+    - name: Clean pulled Flannel images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+        source: local
+      loop: "{{ flannel_images }}"
+    - name: Clean Flannel amd64 images tagged for local registry
+      community.docker.docker_image:
+        name: "{{ registry_name }}/{{ item }}-amd64"
+        state: absent
+        source: local
+      loop: "{{ flannel_images }}"
+    - name: Clean Flannel arm64 images tagged for local registry
+      community.docker.docker_image:
+        name: "{{ registry_name }}/{{ item }}-arm64"
+        state: absent
+        source: local
+      loop: "{{ flannel_images }}"

@@ -1,0 +1,4 @@
+# TODO: This may be set up using local DNS
+master_ip: 192.168.2.16
+registry_name: "master:5000"
+config_dir: ~/.lfedge

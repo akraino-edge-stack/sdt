@@ -1,0 +1,291 @@
+---
+- hosts: master
+  connection: local
+  vars:
+    edgex_deployments: "{{ lookup('fileglob', '../../edgex/deployments/*.yaml', wantlist=true) }}"
+
+  tasks:
+    - name: Get EdgeX image names
+      set_fact:
+        edgex_raw_images: "{{ edgex_raw_images | default([]) + (lookup('file',item) | regex_findall('image:\\s*(\\S*)', '\\1')) }}"
+      loop: "{{ edgex_deployments }}"
+    - name: Eliminate duplicate image names
+      set_fact:
+        edgex_images: "{{ edgex_raw_images | unique }}"
+    - name: Get EdgeX foundry image names
+      set_fact:
+        edgex_foundry_images: "{{ edgex_foundry_images | default([]) + [item] }}"
+      when: item is search('edgexfoundry')
+      loop: "{{ edgex_images }}"
+    - name: Delete sync-app image names
+      set_fact:
+        edgex_foundry_images: "{{ edgex_foundry_images | difference('edgexfoundry/sync-app:latest') }}"
+        edgex_images: "{{ edgex_images | difference('edgexfoundry/sync-app:latest') }}"
+    - name: Delete device-lora image names
+      set_fact:
+        edgex_foundry_images: "{{ edgex_foundry_images | difference('edgexfoundry/device-lora:latest') }}"
+        edgex_images: "{{ edgex_images | difference('edgexfoundry/device-lora:latest') }}"
+    - name: Delete shim-security-bootstrapper image names
+      set_fact:
+        edgex_foundry_images: "{{ edgex_foundry_images | difference('edgexfoundry/shim-security-bootstrapper:latest') }}"
+        edgex_images: "{{ edgex_images | difference('edgexfoundry/shim-security-bootstrapper:latest') }}"
+    - name: Delete shim-security-secretstore-setup image names
+      set_fact:
+        edgex_foundry_images: "{{ edgex_foundry_images | difference('edgexfoundry/shim-security-secretstore-setup:latest') }}"
+        edgex_images: "{{ edgex_images | difference('edgexfoundry/shim-security-secretstore-setup:latest') }}"
+    - name: Delete patched Kong image name
+      set_fact:
+        edgex_images: "{{ edgex_images | difference('kong-patched:latest') }}"
+    - name: Get EdgeX non-foundry image names
+      set_fact:
+        edgex_ext_images: "{{ edgex_ext_images | default([]) + [item] }}"
+      when: item is not search('edgexfoundry')
+      loop: "{{ edgex_images }}"
+    - name: Pull upstream EdgeX amd64 images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        source: pull
+        force_source: yes
+        state: present
+        pull:
+          platform: linux/amd64
+      loop: "{{ edgex_images }}"
+    - name: Push EdgeX amd64 images to the local registry
+      community.docker.docker_image:
+        name: "{{ item }}"
+        repository: "{{ registry_name }}/{{ item }}-amd64"
+        push: yes
+        source: local
+      loop: "{{ edgex_images }}"
+    - name: Pull upstream EdgeX arm64 foundry images
+      # These images are not multi-architecture and need a
+      # -arm64 suffix on the name.
+      community.docker.docker_image:
+        name: "{{ item | regex_replace(':([^:]+)$','-arm64:\\1') }}"
+        source: pull
+        force_source: yes
+        state: present
+        pull:
+          platform: linux/arm64
+      loop: "{{ edgex_foundry_images }}"
+    - name: Push EdgeX arm64 foundry images to the local registry
+      community.docker.docker_image:
+        name: "{{ item | regex_replace(':([^:]+)$','-arm64:\\1') }}"
+        repository: "{{ registry_name }}/{{ item }}-arm64"
+        push: yes
+        source: local
+      loop: "{{ edgex_foundry_images }}"
+    - name: Remove EdgeX amd64 non-foundry image local copies
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ edgex_ext_images }}"
+    - name: Pull upstream EdgeX arm64 non-foundry images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        source: pull
+        force_source: yes
+        state: present
+        pull:
+          platform: linux/arm64
+      loop: "{{ edgex_ext_images }}"
+    - name: Push EdgeX arm64 non-foundry images to the local registry
+      community.docker.docker_image:
+        name: "{{ item }}"
+        repository: "{{ registry_name }}/{{ item }}-arm64"
+        push: yes
+        source: local
+      loop: "{{ edgex_ext_images }}"
+    - name: Remove EdgeX arm64 non-foundry image local copies
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ edgex_ext_images }}"
+    - name: Remove existing local multi-architecture manifests for EdgeX images
+      # In case this play failed earlier
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
+      ignore_errors: yes
+      loop: "{{ edgex_images }}"
+    - name: Create multi-architecture manifests for EdgeX images
+      # FIXME: This will update the manifests every time the script runs
+      # whether there is a real change or not.
+      command:
+        cmd: "docker manifest create {{ registry_name }}/{{ item }} {{ registry_name }}/{{ item }}-amd64 {{ registry_name }}/{{ item }}-arm64"
+      loop: "{{ edgex_images }}"
+    - name: Push multi-architecture manifests for EdgeX images
+      command:
+        cmd: "docker manifest push {{ registry_name }}/{{ item }}"
+      loop: "{{ edgex_images }}"
+    - name: Remove local multi-architecture manifests for EdgeX images
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
+      loop: "{{ edgex_images }}"
+
+    - name: Get the list of Kubernetes images
+      command:
+        cmd: "kubeadm config images list"
+      register: k8s_img_cmd
+    - name: Get the Kubernetes local image names
+      command:
+        cmd: "kubeadm config images list --config {{ config_dir }}/config.yml"
+      register: k8s_local_img_cmd
+    - name: Map K8s images to local names
+      # NOTE: This depends on both commands returning lists in the same order
+      set_fact:
+        k8s_images: "{{ (k8s_img_cmd.stdout.splitlines() | zip(k8s_local_img_cmd.stdout.splitlines())) | list }}"
+    - name: Get K8s multi-architecture image names
+      set_fact:
+        k8s_multi_images: "{{ k8s_multi_images | default([]) + [item] }}"
+      # kube-proxy and pause need to be multi-architecture
+      when: item is search("kube-proxy|pause")
+      loop: "{{ k8s_img_cmd.stdout.splitlines() | list }}"
+    - name: Get K8s multi-architecture local image names
+      set_fact:
+        k8s_multi_local_images: "{{ k8s_multi_local_images | default([]) + [item] }}"
+      when: item is search("kube-proxy|pause")
+      loop: "{{ k8s_local_img_cmd.stdout.splitlines() | list }}"
+    - name: Pull K8s images
+      community.docker.docker_image:
+        name: "{{ item[0] }}"
+        source: pull
+        force_source: yes
+        state: present
+        pull:
+          platform: linux/amd64
+      loop: "{{ k8s_images }}"
+    - name: Push K8s images to the local registry
+      community.docker.docker_image:
+        name: "{{ item[0] }}"
+        repository: "{{ item[1] }}"
+        push: yes
+        source: local
+      when: item[0] is not search("kube-proxy|pause")
+      loop: "{{ k8s_images }}"
+    - name: Push K8s amd64 images to the local registry
+      community.docker.docker_image:
+        name: "{{ item[0] }}"
+        repository: "{{ item[1] }}-amd64"
+        push: yes
+        source: local
+      when: item[0] is search("kube-proxy|pause")
+      loop: "{{ k8s_images }}"
+    - name: Remove K8s amd64 image local copies
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ k8s_multi_images }}"
+    - name: Pull K8s arm64 images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        source: pull
+        force_source: yes
+        state: present
+        pull:
+          platform: linux/arm64
+      loop: "{{ k8s_multi_images }}"
+    - name: Push K8s arm64 images to the local registry
+      community.docker.docker_image:
+        name: "{{ item[0] }}"
+        repository: "{{ item[1] }}-arm64"
+        push: yes
+        source: local
+      when: item[0] is search("kube-proxy|pause")
+      loop: "{{ k8s_images }}"
+    - name: Remove K8s arm64 image local copies
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ k8s_multi_images }}"
+    - name: Remove existing local multi-architecture manifests for K8s images
+      # In case this play failed before and left manifests around
+      command:
+        cmd: "docker manifest rm {{ item }}"
+      ignore_errors: yes
+      loop: "{{ k8s_multi_local_images }}"
+    - name: Create multi-architecture manifests for K8s images
+      # FIXME: This will update the manifests every time the script runs
+      # whether there is a real change or not.
+      command:
+        cmd: "docker manifest create {{ item }} {{ item }}-amd64 {{ item }}-arm64"
+      loop: "{{ k8s_multi_local_images }}"
+    - name: Push multi-architecture manifests for K8s images
+      command:
+        cmd: "docker manifest push {{ item }}"
+      loop: "{{ k8s_multi_local_images }}"
+    - name: Remove local multi-architecture manifests for K8s images
+      command:
+        cmd: "docker manifest rm {{ item }}"
+      loop: "{{ k8s_multi_local_images }}"
+
+      # NOTE: This depends on master_install having downloaded the flannel
+      # config
+    - name: Get Flannel config
+      ansible.builtin.slurp:
+        src: "{{ config_dir }}/kube-flannel.yml"
+      register: flannel_slurp
+    - name: Get Flannel image names
+      set_fact:
+        flannel_images: "{{ flannel_slurp.content | b64decode | regex_findall('image:\\s*(\\S*)', '\\1') | unique }}"
+    - name: Pull Flannel amd64 images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        source: pull
+        force_source: yes
+        state: present
+        pull:
+          platform: linux/amd64
+      loop: "{{ flannel_images }}"
+    - name: Push Flannel amd64 images to the local registry
+      community.docker.docker_image:
+        name: "{{ item }}"
+        repository: "{{ registry_name }}/{{ item }}-amd64"
+        push: yes
+        source: local
+      loop: "{{ flannel_images }}"
+    - name: Remove Flannel amd64 image local copies
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ flannel_images }}"
+    - name: Pull Flannel arm64 images
+      community.docker.docker_image:
+        name: "{{ item }}"
+        source: pull
+        force_source: yes
+        state: present
+        pull:
+          platform: linux/arm64
+      loop: "{{ flannel_images }}"
+    - name: Push Flannel arm64 images to the local registry
+      community.docker.docker_image:
+        name: "{{ item }}"
+        repository: "{{ registry_name }}/{{ item }}-arm64"
+        push: yes
+        source: local
+      loop: "{{ flannel_images }}"
+    - name: Remove Flannel arm64 image local copies
+      community.docker.docker_image:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ flannel_images }}"
+    - name: Remove local multi-architecture manifests for Flannel images
+      # In case this play failed earlier and left manifests around
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
+      ignore_errors: yes
+      loop: "{{ flannel_images }}"
+    - name: Create multi-architecture manifests for Flannel images
+      # FIXME: This will update the manifests every time the script runs
+      # whether there is a real change or not.
+      command:
+        cmd: "docker manifest create {{ registry_name }}/{{ item }} {{ registry_name }}/{{ item }}-amd64 {{ registry_name }}/{{ item }}-arm64"
+      loop: "{{ flannel_images }}"
+    - name: Push multi-architecture manifests for Flannel images
+      command:
+        cmd: "docker manifest push {{ registry_name }}/{{ item }}"
+      loop: "{{ flannel_images }}"
+    - name: Remove local multi-architecture manifests for Flannel images
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
+      loop: "{{ flannel_images }}"

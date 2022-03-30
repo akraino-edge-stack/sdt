@@ -1,0 +1,16 @@
+---
+- hosts: localhost
+  connection: local
+  vars:
+    images:
+      - edgexfoundry/sync-app
+      - edgexfoundry/device-lora
+
+  tasks:
+    - name: Push amd64 images to registry
+      community.docker.docker_image:
+        name: "{{ item }}-amd64:latest"
+        repository: "{{ registry_name }}/{{ item }}:latest"
+        push: yes
+        source: local
+      loop: "{{ images }}"

@@ -1,0 +1,35 @@
+apiVersion: "v2"
+name: "LoRa-Device"
+manufacturer: "FUJITSU"
+model: "SP-01"
+labels:
+  - "device-lora-example"
+description: "Example of LoRa Device"
+
+deviceResources:
+  - name: "Temperature"
+    isHidden: false
+    description: "Get the current temperature in degrees celsius"
+    properties:
+      valueType: "Float32"
+      readWrite: "R"
+      units: "Degrees Celsius"
+  - name: "Humidity"
+    isHidden: false
+    description: "Get the current relative humidity in percent"
+    properties:
+      valueType: "Float32"
+      readWrite: "R"
+  - name: "Interval"
+    isHidden: false
+    description: "Get or set the sampling interval in seconds"
+    properties:
+      valueType: "Float32"
+      readWrite: "RW"
+deviceCommands:
+  - name: "TemperatureAndHumidity"
+    isHidden: false
+    readWrite: "R"
+    resourceOperations:
+      - deviceResource: "Temperature"
+      - deviceResource: "Humidity"

@@ -1,0 +1,142 @@
+---
+- hosts: edge_nodes
+  vars:
+    kube_volumes: "{{ lookup('fileglob','../../edgex/volumes/*.yaml', wantlist=true) }}"
+
+  tasks:
+    - name: Create volume directories for EdgeX
+      become: true
+      ansible.builtin.file:
+        # FIXME: Figure out how to secure these directories better
+        path: "{{ (lookup('file',item) | regex_search('path:\\s*(\\S*)', '\\1'))[0] }}"
+        state: directory
+        mode: '0777'
+      loop: "{{ kube_volumes }}"
+
+    - name: Add MQTT secrets
+      become: true
+      ansible.builtin.copy:
+        # FIXME: Find a better way to inject the secrets?
+        content: "{{ lookup('file','mqtt/secrets.json') | replace('USERNAME_PLACE_HOLDER',mqtt_user) | replace('PASSWORD_PLACE_HOLDER',mqtt_pwd) }}"
+        dest: "{{ mqtt_secrets_file }}"
+        mode: '0666'
+
+- hosts: master
+  connection: local
+  vars:
+    edge_nodes: "{{ query('inventory_hostnames', 'edge_nodes') }}"
+    kube_policies: "{{ lookup('fileglob','../../edgex/policies/*.yaml', wantlist=true) }}"
+    kube_volumes: "{{ lookup('fileglob','../../edgex/volumes/*.yaml', wantlist=true) }}"
+    kube_deployments: "{{ lookup('fileglob','../../edgex/deployments/*.yaml', wantlist=true) }}"
+    kube_claims: "{{ lookup('fileglob','../../edgex/claims/*.yaml', wantlist=true) }}"
+    kube_services: "{{ lookup('fileglob','../../edgex/services/*.yaml', wantlist=true) }}"
+
+  tasks:
+    - name: Create directories for node config
+      ansible.builtin.file:
+        path: "{{ config_dir }}/{{ item }}"
+        state: directory
+      loop: "{{ edge_nodes }}"
+
+      # Network policies do not seem to be necessary right now.
+      # - name: Create policy configuration files
+      #   ansible.builtin.copy:
+      #     content: "{{ lookup('file', item[1]) | replace('NODENAME',item[0]) }}"
+      #     dest: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+      #   loop: "{{ edge_nodes | product(kube_policies) | list }}"
+      # - name: Apply policies
+      #   kubernetes.core.k8s:
+      #     apply: yes
+      #     src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+      #     # NOTE: The generated network policy does not include a namespace
+      #     # and that causes an API failure
+      #     namespace: default
+      #     state: present
+      #   loop: "{{ edge_nodes | product(kube_policies) | list }}"
+
+    - name: Copy service files
+      ansible.builtin.copy:
+        content: "{{ lookup('file', item[1]) | replace('NODENAME',item[0]) }}"
+        dest: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+      loop: "{{ edge_nodes | product(kube_services) | list }}"
+    - name: Apply service definitions
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        namespace: default
+        state: present
+      loop: "{{ edge_nodes | product(kube_services) | list }}"
+
+    - name: Copy claim files
+      ansible.builtin.copy:
+        content: "{{ lookup('file', item[1]) | replace('NODENAME',item[0]) }}"
+        dest: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+      loop: "{{ edge_nodes | product(kube_claims) | list }}"
+    - name: Apply claim definitions
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        namespace: default
+        state: present
+      loop: "{{ edge_nodes | product(kube_claims) | list }}"
+
+    - name: Create volume configuration files
+      ansible.builtin.copy:
+        content: "{{ lookup('file', item[1]) | replace('NODENAME',item[0]) }}"
+        dest: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+      loop: "{{ edge_nodes | product(kube_volumes) | list }}"
+    - name: Create persistent volume resources
+      kubernetes.core.k8s:
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        state: present
+      loop: "{{ edge_nodes | product(kube_volumes) | list }}"
+
+    - name: Get base deployment data
+      # Change image names to use local registry
+      # And replace MQTT_BROKER_ADDRESS_PLACE_HOLDER
+      ansible.builtin.set_fact:
+        base_deploy: "{{ base_deploy | default({}) | combine({item: lookup('file', item) | regex_replace('image:\\s+(\\S+)', 'image: '+registry_name+'/\\1') | replace('MQTT_BROKER_ADDRESS_PLACE_HOLDER',master_ip)}) }}"
+      loop: "{{ kube_deployments }}"
+    - name: Enable device-virtual
+      ansible.builtin.set_fact:
+        base_deploy: "{{ base_deploy | combine({item: new_content}) }}"
+      vars:
+        new_content: "{{ base_deploy[item] | replace('# device-virtual ','') }}"
+      loop: "{{ kube_deployments }}"
+      when: device_virtual
+    - name: Enable device-lora
+      ansible.builtin.set_fact:
+        base_deploy: "{{ base_deploy | combine({item: new_content}) }}"
+      vars:
+        new_content: "{{ base_deploy[item] | replace('# device-lora ','') }}"
+      loop: "{{ kube_deployments }}"
+      when: device_lora
+    - name: Enable sync-app
+      ansible.builtin.set_fact:
+        base_deploy: "{{ base_deploy | combine({item: new_content}) }}"
+      vars:
+        new_content: "{{ base_deploy[item] | replace('# sync-app ','') }}"
+      loop: "{{ kube_deployments }}"
+      when: sync_app
+    - name: Create per-node deployments
+      # Name per-node items based on the node
+      ansible.builtin.set_fact:
+        deploy_content: "{{ deploy_content | default({}) | combine({item[0]: base_deploy[item[1]] | replace('NODENAME',item[0]) | replace('EDGE_NODE_URL','edgex-'+edge_nodes[loop_count-1]) | replace('STATION_ID_PLACE_HOLDER',(hostvars[item[0]]['lora_id'] | default(loop_count+1)))}) }}"
+      loop: "{{ edge_nodes | product(kube_deployments) | list }}"
+      loop_control:
+        index_var: loop_count
+
+    - name: Write deployment configuration files
+      ansible.builtin.copy:
+        content: "{{ deploy_content[item[0]] }}"
+        dest: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        mode: '0600'
+      loop: "{{ edge_nodes | product(kube_deployments) | list }}"
+    - name: Apply deployments
+      kubernetes.core.k8s:
+        apply: yes
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        namespace: default
+        state: present
+      loop: "{{ edge_nodes | product(kube_deployments) | list }}"
+

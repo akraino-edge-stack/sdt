@@ -1,0 +1,78 @@
+---
+- hosts: arm-build
+  vars:
+    # go_url: https://golang.org/dl/
+    go_url: https://dl.google.com/go/
+    go_pkg: go1.16.10.linux-arm64.tar.gz
+    go_dst: /usr/local
+
+  tasks: 
+    - name: Install build tools and required libraries
+      become: true
+      apt:
+        pkg:
+          - make
+          - build-essential
+          - pkg-config
+          - libzmq3-dev
+          - docker.io
+    - name: Ensure the docker group exists
+      become: true
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: Make sure the build user is in the docker group
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        append: yes
+        groups: docker
+        update_password: on_create
+
+    - name: Download Go
+      become: true
+      get_url:
+        url: "{{ go_url }}{{ go_pkg }}"
+        dest: "{{ go_dst }}"
+      register: go_download
+
+    - name: Remove existing Go
+      become: true
+      ansible.builtin.file:
+        path: "{{ go_dst }}/go"
+        state: absent
+      when: go_download.changed
+
+    - name: Install Go
+      become: true
+      ansible.builtin.unarchive:
+        src: "{{ go_dst }}/{{ go_pkg }}"
+        dest: "{{ go_dst }}"
+        remote_src: yes
+      when: go_download.changed
+
+    - name: Setup Go environment
+      become: true
+      ansible.builtin.copy:
+        content: >
+          export PATH=$PATH:/usr/local/go/bin
+        dest: /etc/profile.d/go.sh
+
+    - name: Create EdgeX build directory
+      # Actually the git clone below will create this anyway.
+      ansible.builtin.file:
+        path: "~/edgexfoundry"
+        state: directory
+
+    - name: Get EdgeX application service SDK
+      ansible.builtin.git:
+        repo: https://github.com/edgexfoundry/app-functions-sdk-go.git
+        dest: "~/edgexfoundry/app-functions-sdk-go"
+        depth: 1
+        version: v2.1.0
+    - name: Get EdgeX device service SDK
+      ansible.builtin.git:
+        repo: https://github.com/edgexfoundry/device-sdk-go.git
+        dest: "~/edgexfoundry/device-sdk-go"
+        depth: 1
+        version: v2.1.0

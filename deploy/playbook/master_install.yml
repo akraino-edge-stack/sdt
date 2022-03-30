@@ -1,0 +1,170 @@
+---
+- hosts: master
+  connection: local
+  tasks: 
+
+    - name: Add master node to /etc/hosts (if master is not hostname)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
+        line: "{{ master_ip }} master"
+        insertbefore: BOF
+      when: (ansible_facts['nodename'] != "master")
+    - name: Add edge nodes to /etc/hosts
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+{{ item }}"
+        line: "{{ hostvars[item]['ip'] }} {{ item }}"
+        insertbefore: BOF
+      loop: "{{ query('inventory_hostnames', 'edge_nodes') }}"
+
+    - name: Install required packages to master
+      become: true
+      ansible.builtin.apt:
+        update_cache: yes
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - docker.io
+          - python3-pip
+    - name: Add Mosquitto repository
+      # Updates to the latest version of Mosquitto to avoid "/tmp/dlt" error
+      become: true
+      ansible.builtin.apt_repository:
+        repo: ppa:mosquitto-dev/mosquitto-ppa
+        state: present
+    - name: Install latest Mosquitto
+      become: true
+      ansible.builtin.apt:
+        pkg:
+          - mosquitto
+          - mosquitto-clients
+        state: latest
+
+    - name: Ensure the docker group exists
+      become: true
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: Make sure the deploy user is in the docker group
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_env.USER }}"
+        append: yes
+        groups: docker
+        update_password: on_create
+    - name: Install Docker for Python # required for start_registry
+      pip:
+        state: present
+        name: docker
+    - name: Configure docker # Includes settings for k8s and local registry
+      become: true
+      ansible.builtin.copy:
+        src: docker/daemon.json
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      register: docker_conf
+    - name: Restart the docker service
+      become: true
+      service:
+        name: docker
+        state: restarted
+      when: docker_conf.changed
+    - name: Install Python cryptography
+      # Required to generate certificates for docker
+      pip:
+        state: present
+        name: cryptography
+
+    - name: Make sure MQTT password file exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/mosquitto/password
+        state: touch
+    - name: Setup MQTT broker security
+      become: true
+      # FIXME: Because this is a raw command it will restart the broker every
+      # time
+      ansible.builtin.command:
+        argv:
+          - mosquitto_passwd
+          - -b
+          - /etc/mosquitto/password
+          - "{{ mqtt_user }}"
+          - "{{ mqtt_pwd }}"
+      register: mqtt_security
+    - name: Configure the MQTT broker
+      become: true
+      ansible.builtin.copy:
+        src: "mqtt/edge.conf"
+        dest: "/etc/mosquitto/conf.d/edge.conf"
+      register: mqtt_conf
+    - name: Restart the mosquitto service
+      become: true
+      service:
+        name: mosquitto
+        state: restarted
+      when: mqtt_conf.changed or mqtt_security.changed
+
+    - name: Setup Kubernetes key
+      become: true
+      get_url:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+    - name: Setup Kubernetes apt source
+      become: true
+      ansible.builtin.lineinfile:
+        line: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+        path: /etc/apt/sources.list.d/kubernetes.list
+        create: yes
+    - name: Install Kubernetes
+      become: true
+      apt:
+        update_cache: yes
+        pkg:
+          - kubectl=1.22*
+          - kubelet=1.22*
+          - kubeadm=1.22*
+      # NOTE: The following requirements for k8s are met by default
+      # sysctl net.bridge.bridge-nf-call-iptables = 1
+      # modprobe br_netfilter
+    - name: Create cluster config directory if it does not exist
+      ansible.builtin.file:
+        path: "{{ config_dir }}"
+        state: directory
+        mode: '0700'
+    - name: Get Flannel pod network config
+      get_url:
+        url: https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        dest: "{{ config_dir }}/kube-flannel.yml"
+      # The containers are hosted locally, so we need to generate a
+      # modified config to use those images.
+    - name: Get Flannel config
+      ansible.builtin.slurp:
+        src: "{{ config_dir }}/kube-flannel.yml"
+      register: flannel_slurp
+    - name: Get Flannel image names
+      set_fact:
+        flannel_images: "{{ flannel_slurp.content | b64decode | regex_findall('image:\\s*(\\S*)', '\\1') | unique }}"
+        flannel_cfg: "{{ flannel_slurp.content | b64decode }}"
+    - name: Convert Flannel image names to private registry names
+      set_fact:
+        flannel_cfg: "{{ flannel_cfg | replace(item,registry_name + '/' + item) }}"
+      loop: "{{ flannel_images }}"
+    - name: Create private registry version of Flannel config
+      ansible.builtin.copy:
+        content: "{{ flannel_cfg }}"
+        dest: "{{ config_dir }}/kube-flannel-private.yml"
+

@@ -1,0 +1,23 @@
+---
+- hosts: localhost
+  connection: local
+  tasks: 
+    - name: Stop Jenkins service
+      become: true
+      service:
+        name: jenkins
+        enabled: yes
+        state: stopped
+    - name: Copy jobs to /var/lib/jenkins/jobs
+      become: true
+      copy:
+        src: ../jenkins/jobs/
+        dest: /var/lib/jenkins/jobs/
+        owner: jenkins
+        group: jenkins
+    - name: Start Jenkins service
+      become: true
+      service:
+        name: jenkins
+        enabled: yes
+        state: started

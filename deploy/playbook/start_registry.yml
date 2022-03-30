@@ -1,0 +1,101 @@
+---
+- hosts: master
+  connection: local
+  vars:
+    keypath: /opt/lfedge/keys
+    cakeyfile: master.key
+    cacertfile: master.crt
+    cacertpath: /usr/local/share/ca-certificates
+    keyfile: registry.key
+    certfile: registry.crt
+    certpath: /etc/docker/certs.d/master:5000
+  tasks: 
+    - name: Make sure key path exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ keypath }}"
+        state: directory
+        mode: '0755'
+    - name: Make sure certificate path exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ certpath }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create CA private key
+      become: true
+      community.crypto.openssl_privatekey:
+        type: "RSA"
+        size: 4096
+        path: "{{ keypath }}/{{ cakeyfile }}"
+    - name: Create CSR
+      become: true
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ keypath }}/{{ cakeyfile }}"
+        common_name: "Registry Root CA"
+        basic_constraints_critical: yes
+        basic_constraints:
+          - "CA:TRUE"
+      register: cacsr
+    - name: Create CA certificate
+      become: true
+      community.crypto.x509_certificate:
+        provider: selfsigned
+        csr_content: "{{ cacsr.csr }}"
+        selfsigned_digest: "sha256"
+        selfsigned_not_after: "+365d"
+        privatekey_path: "{{ keypath }}/{{ cakeyfile }}"
+        path: "{{ cacertpath }}/{{ cacertfile }}"
+
+    - name: Create private key
+      become: true
+      community.crypto.openssl_privatekey:
+        type: "RSA"
+        size: 4096
+        path: "{{ keypath }}/{{ keyfile }}"
+    - name: Create CSR
+      become: true
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ keypath }}/{{ keyfile }}"
+        common_name: "master"
+        subject_alt_name:
+          - "DNS:master"
+      register: csr
+    - name: Create certificate
+      become: true
+      community.crypto.x509_certificate:
+        provider: ownca
+        csr_content: "{{ csr.csr }}"
+        ownca_path: "{{ cacertpath }}/{{ cacertfile }}"
+        ownca_not_after: "+365d"
+        ownca_privatekey_path: "{{ keypath }}/{{ cakeyfile }}"
+        path: "{{ keypath }}/{{ certfile }}"
+
+    - name: Enable the CA certificate
+      become: true
+      ansible.builtin.command:
+        cmd: "update-ca-certificates"
+    - name: Copy the registry certificate
+      # Enable local docker commands to connect
+      become: true
+      ansible.builtin.copy:
+        src: "{{ keypath }}/{{ certfile }}"
+        dest: "{{ certpath }}/{{ certfile }}"
+
+    - name: Start Docker Registry
+      community.docker.docker_container:
+        name: registry
+        state: started
+        image: registry:2
+        detach: yes
+        env:
+          REGISTRY_HTTP_TLS_CERTIFICATE: "/certs/{{ certfile }}"
+          REGISTRY_HTTP_TLS_KEY: "/certs/{{ keyfile }}"
+        mounts:
+          - target: /certs
+            source: "{{ keypath }}"
+            type: bind
+        ports:
+          - "5000:5000"
+        restart_policy: unless-stopped

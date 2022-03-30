@@ -1,0 +1,1921 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edgex-NODENAME
+  labels:
+    name: edgex-NODENAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: edgex-NODENAME
+      name: edgex-NODENAME
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: edgex-NODENAME
+        name: edgex-NODENAME
+    spec:
+      containers:
+        - name: edgex-core-consul
+          command: 
+            - /edgex-init/consul_wait_install.sh
+          args:
+            - agent
+            - -ui
+            - -bootstrap
+            - -server
+            - -client
+            - 0.0.0.0
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: ADD_REGISTRY_ACL_ROLES
+              value: app-mqtt-export,device-lora,sync-app
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: EDGEX_GROUP
+              value: "2001"
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: EDGEX_USER
+              value: "2002"
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_ACL_BOOTSTRAPTOKENPATH
+              value: /tmp/edgex/secrets/consul-acl-token/bootstrap_token.json
+            - name: STAGEGATE_REGISTRY_ACL_SENTINELFILEPATH
+              value: /consul/config/consul_acl_done
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: consul:1.10.3
+          ports:
+            - containerPort: 8500
+          volumeMounts:
+            - mountPath: /consul/config
+              name: consul-config
+            - mountPath: /consul/data
+              name: consul-data
+            - mountPath: /edgex-init
+              name: edgex-init
+              readOnly: true
+            - mountPath: /tmp/edgex/secrets/consul-acl-token
+              name: consul-acl-token
+            - mountPath: /tmp/edgex/secrets/edgex-consul
+              name: consul-secrets
+              readOnly: true
+
+        - name: edgex-redis
+          command: 
+            - /edgex-init/redis_wait_install.sh
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASECONFIG_NAME
+              value: redis.conf
+            - name: DATABASECONFIG_PATH
+              value: /run/redis/conf
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: redis:6.2.6-alpine
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - mountPath: /data
+              name: db-data
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /run/redis/conf
+              name: redis-config
+            - mountPath: /tmp/edgex/secrets/security-bootstrapper-redis
+              name: database-secrets
+              # readOnly: true
+            # - mountPath: /run
+            #   name: database-tmpfs0
+
+        - name: edgex-sys-mgmt-agent
+          args:
+            - /sys-mgmt-agent
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: EXECUTORPATH
+              value: /sys-mgmt-executor
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: METRICSMECHANISM
+              value: executor
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/sys-mgmt-agent:2.1.0
+          ports:
+            - containerPort: 58890
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/sys-mgmt-agent
+              name: system-secrets
+              # readOnly: true
+            - mountPath: /var/run/docker.sock
+              name: system-docker
+
+        - name: edgex-kuiper
+          command: 
+            - /edgex-init/kuiper_wait_install.sh
+          securityContext:
+            runAsUser: 1001
+            runAsGroup: 1001
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: EDGEX__DEFAULT__PORT
+              value: "6379"
+            - name: EDGEX__DEFAULT__PROTOCOL
+              value: redis
+            - name: EDGEX__DEFAULT__SERVER
+              value: localhost
+            - name: EDGEX__DEFAULT__TOPIC
+              value: rules-events
+            - name: EDGEX__DEFAULT__TYPE
+              value: redis
+            - name: KUIPER__BASIC__CONSOLELOG
+              value: "true"
+            - name: KUIPER__BASIC__RESTPORT
+              value: "59720"
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+          image: lfedge/ekuiper:1.3.1-alpine
+          ports:
+            - containerPort: 59720
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              readOnly: true
+            - mountPath: /kuiper/data
+              name: kuiper-data
+            - mountPath: /kuiper/etc/connections
+              name: kuiper-connections
+            - mountPath: /tmp/sources
+              name: kuiper-sources
+
+        - name: edgex-app-mqtt-export
+          args:
+            - /app-service-configurable
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: DATABASE_HOST
+              value: localhost
+            - name: EDGEX_PROFILE
+              value: mqtt-export
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: TRIGGER_EDGEXMESSAGEBUS_PUBLISHHOST_HOST
+              value: localhost
+            - name: TRIGGER_EDGEXMESSAGEBUS_SUBSCRIBEHOST_HOST
+              value: localhost
+            - name: WRITABLE_LOGLEVEL
+              value: INFO
+            - name: WRITABLE_PIPELINE_FUNCTIONS_MQTTEXPORT_PARAMETERS_AUTHMODE
+              value: usernamepassword
+              # FIXME: Use a more secure system?
+            - name: WRITABLE_PIPELINE_FUNCTIONS_MQTTEXPORT_PARAMETERS_SECRETPATH
+              value: mqtt
+            - name: SECRETSTORE_SECRETSFILE
+              value: /tmp/edgex/secrets/app-mqtt-export/service-secrets.json
+            - name: WRITABLE_PIPELINE_FUNCTIONS_MQTTEXPORT_PARAMETERS_BROKERADDRESS
+              value: tcp://MQTT_BROKER_ADDRESS_PLACE_HOLDER:1883
+            - name: WRITABLE_PIPELINE_FUNCTIONS_MQTTEXPORT_PARAMETERS_TOPIC
+              value: edgex-events-NODENAME
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/app-service-configurable:2.1.0
+          ports:
+            - containerPort: 59703
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              readOnly: true
+            - mountPath: /tmp/edgex/secrets/app-mqtt-export
+              name: app-service-mqtt-export-secrets
+              # NOTE: Must not be read-only so the secrets file can be scrubbed
+
+        - name: edgex-core-metadata
+          args:
+            - /core-metadata
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 2001
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: NOTIFICATIONS_SENDER
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/core-metadata:2.1.0
+          ports:
+            - containerPort: 59881
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/core-metadata
+              name: metadata-secrets
+              # readOnly: true
+
+        - name: edgex-app-rules-engine
+          args:
+            - /app-service-configurable
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 2001
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_PROFILE
+              value: rules-engine
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: TRIGGER_EDGEXMESSAGEBUS_PUBLISHHOST_HOST
+              value: localhost
+            - name: TRIGGER_EDGEXMESSAGEBUS_SUBSCRIBEHOST_HOST
+              value: localhost
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/app-service-configurable:2.1.0
+          ports:
+            - containerPort: 59701
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/app-rules-engine
+              name: app-service-rules-secrets
+              # readOnly: true
+
+        - name: edgex-core-command
+          args:
+            - /core-command
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 2001
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/core-command:2.1.0
+          ports:
+            - containerPort: 59882
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/core-command
+              name: command-secrets
+              # readOnly: true
+
+        - name: edgex-core-data
+          args:
+            - /core-data
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 2001
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SECRETSTORE_TOKENFILE
+              value: /tmp/edgex/secrets/core-data/secrets-token.json
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/core-data:2.1.0
+          ports:
+            - containerPort: 5563
+            - containerPort: 59880
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/core-data
+              name: data-secrets
+              # readOnly: true
+
+        - name: edgex-device-rest
+          args:
+            - /device-rest
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 2001
+            readOnlyRootFilesystem: true
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SERVICE_HOST
+              value: localhost
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/device-rest:2.1.0
+          ports:
+            - containerPort: 59986
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              readOnly: true
+            - mountPath: /tmp/edgex/secrets/device-rest
+              name: device-rest-secrets
+              readOnly: true
+          resources: {}
+
+        # Automatically uncommented if device-virtual is enabled
+        # device-virtual - name: edgex-device-virtual
+        # device-virtual   args:
+        # device-virtual     - /device-virtual
+        # device-virtual     - -cp=consul.http://localhost:8500
+        # device-virtual     - --registry
+        # device-virtual     - --confdir=/res
+        # device-virtual   command: 
+        # device-virtual     - /edgex-init/ready_to_run_wait_install.sh
+        # device-virtual   env:
+        # device-virtual     - name: API_GATEWAY_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: API_GATEWAY_STATUS_PORT
+        # device-virtual       value: "8100"
+        # device-virtual     - name: CLIENTS_CORE_COMMAND_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: CLIENTS_CORE_DATA_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: CLIENTS_CORE_METADATA_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: DATABASES_PRIMARY_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: EDGEX_SECURITY_SECRET_STORE
+        # device-virtual       value: "true"
+        # device-virtual     - name: PROXY_SETUP_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: SECRETSTORE_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: SECRETSTORE_PORT
+        # device-virtual       value: "8200"
+        # device-virtual     - name: STAGEGATE_BOOTSTRAPPER_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+        # device-virtual       value: "54321"
+        # device-virtual     - name: STAGEGATE_DATABASE_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: STAGEGATE_DATABASE_PORT
+        # device-virtual       value: "6379"
+        # device-virtual     - name: STAGEGATE_DATABASE_READYPORT
+        # device-virtual       value: "6379"
+        # device-virtual     - name: STAGEGATE_KONGDB_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: STAGEGATE_KONGDB_PORT
+        # device-virtual       value: "5432"
+        # device-virtual     - name: STAGEGATE_KONGDB_READYPORT
+        # device-virtual       value: "54325"
+        # device-virtual     - name: STAGEGATE_READY_TORUNPORT
+        # device-virtual       value: "54329"
+        # device-virtual     - name: STAGEGATE_REGISTRY_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: STAGEGATE_REGISTRY_PORT
+        # device-virtual       value: "8500"
+        # device-virtual     - name: STAGEGATE_REGISTRY_READYPORT
+        # device-virtual       value: "54324"
+        # device-virtual     - name: STAGEGATE_SECRETSTORESETUP_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+        # device-virtual       value: "54322"
+        # device-virtual     - name: STAGEGATE_WAITFOR_TIMEOUT
+        # device-virtual       value: 60s
+        # device-virtual     - name: MESSAGEQUEUE_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: REGISTRY_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: SERVICE_HOST
+        # device-virtual       value: localhost
+        # device-virtual     - name: SERVICE_SERVERBINDADDR
+        # device-virtual       value: 0.0.0.0
+        # device-virtual   image: edgexfoundry/device-virtual:2.1.0
+        # device-virtual   ports:
+        # device-virtual     - containerPort: 59900
+        # device-virtual   volumeMounts:
+        # device-virtual     - mountPath: /edgex-init
+        # device-virtual       name: edgex-init
+        # device-virtual       # readOnly: true
+        # device-virtual     - mountPath: /tmp/edgex/secrets/device-virtual
+        # device-virtual       name: device-virtual-secrets
+        # device-virtual       # readOnly: true
+        # device-virtual   resources: {}
+
+        # Automatically uncommented if device-lora is enabled
+        # device-lora - name: edgex-device-lora
+        # device-lora   args:
+        # device-lora     - /device-lora
+        # device-lora     - -cp=consul.http://localhost:8500
+        # device-lora     - --registry
+        # device-lora     - --confdir=/res
+        # device-lora   command: 
+        # device-lora     - /edgex-init/ready_to_run_wait_install.sh
+        # device-lora   env:
+        # device-lora     - name: API_GATEWAY_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: API_GATEWAY_STATUS_PORT
+        # device-lora       value: "8100"
+        # device-lora     - name: CLIENTS_CORE_COMMAND_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: CLIENTS_CORE_DATA_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: CLIENTS_CORE_METADATA_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: DATABASES_PRIMARY_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: EDGEX_SECURITY_SECRET_STORE
+        # device-lora       value: "true"
+        # device-lora     - name: PROXY_SETUP_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: SECRETSTORE_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: SECRETSTORE_PORT
+        # device-lora       value: "8200"
+        # device-lora     - name: STAGEGATE_BOOTSTRAPPER_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+        # device-lora       value: "54321"
+        # device-lora     - name: STAGEGATE_DATABASE_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: STAGEGATE_DATABASE_PORT
+        # device-lora       value: "6379"
+        # device-lora     - name: STAGEGATE_DATABASE_READYPORT
+        # device-lora       value: "6379"
+        # device-lora     - name: STAGEGATE_KONGDB_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: STAGEGATE_KONGDB_PORT
+        # device-lora       value: "5432"
+        # device-lora     - name: STAGEGATE_KONGDB_READYPORT
+        # device-lora       value: "54325"
+        # device-lora     - name: STAGEGATE_READY_TORUNPORT
+        # device-lora       value: "54329"
+        # device-lora     - name: STAGEGATE_REGISTRY_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: STAGEGATE_REGISTRY_PORT
+        # device-lora       value: "8500"
+        # device-lora     - name: STAGEGATE_REGISTRY_READYPORT
+        # device-lora       value: "54324"
+        # device-lora     - name: STAGEGATE_SECRETSTORESETUP_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+        # device-lora       value: "54322"
+        # device-lora     - name: STAGEGATE_WAITFOR_TIMEOUT
+        # device-lora       value: 60s
+        # device-lora     - name: MESSAGEQUEUE_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: REGISTRY_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: SERVICE_HOST
+        # device-lora       value: localhost
+        # device-lora     - name: SERVICE_SERVERBINDADDR
+        # device-lora       value: 0.0.0.0
+        # device-lora     - name: LORADEVICE_STATIONID
+        # device-lora       value: "STATION_ID_PLACE_HOLDER"
+        # device-lora   image: edgexfoundry/device-lora:latest
+        # device-lora   ports:
+        # device-lora     - containerPort: 59999
+        # device-lora   volumeMounts:
+        # device-lora     - mountPath: /edgex-init
+        # device-lora       name: edgex-init
+        # device-lora       # readOnly: true
+        # device-lora     - mountPath: /tmp/edgex/secrets/device-lora
+        # device-lora       name: device-lora-secrets
+        # device-lora       # readOnly: true
+        # device-lora     - mountPath: /dev/ttyUSB0
+        # device-lora       name: dev-ttyusb0
+        # device-lora   securityContext:
+        # device-lora     privileged: true
+        # device-lora   resources: {}
+
+        - name: edgex-support-notifications
+          args:
+            - /support-notifications
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 2001
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/support-notifications:2.1.0
+          ports:
+            - containerPort: 59860
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/support-notifications
+              name: notifications-secrets
+              # readOnly: true
+
+        - name: edgex-support-scheduler
+          args:
+            - /support-scheduler
+            - -cp=consul.http://localhost:8500
+            - --registry
+            - --confdir=/res
+          command: 
+            - /edgex-init/ready_to_run_wait_install.sh  
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 1001
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: CLIENTS_CORE_COMMAND_HOST
+              value: localhost
+            - name: CLIENTS_CORE_DATA_HOST
+              value: localhost
+            - name: CLIENTS_CORE_METADATA_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: DATABASES_PRIMARY_HOST
+              value: localhost
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: INTERVALACTIONS_SCRUBAGED_HOST
+              value: localhost
+            - name: INTERVALACTIONS_SCRUBPUSHED_HOST
+              value: localhost
+            - name: MESSAGEQUEUE_HOST
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: REGISTRY_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SERVICE_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/support-scheduler:2.1.0
+          ports:
+            - containerPort: 59861
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/support-scheduler
+              name: scheduler-secrets
+              # readOnly: true
+
+        # Automatically uncommented if sync-app is enabled
+        # sync-app - name: sync-app
+        # sync-app   args:
+        # sync-app     - /sync-app
+        # sync-app     - -cp=consul.http://localhost:8500
+        # sync-app     - --registry
+        # sync-app     - --confdir=/res
+        # sync-app   command:
+        # sync-app     - /edgex-init/ready_to_run_wait_install.sh
+        # sync-app   env:
+        # sync-app     - name: API_GATEWAY_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: API_GATEWAY_STATUS_PORT
+        # sync-app       value: "8100"
+        # sync-app     - name: CLIENTS_CORE_COMMAND_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: CLIENTS_CORE_DATA_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: CLIENTS_CORE_METADATA_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: DATABASES_PRIMARY_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: DATABASE_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: EDGEX_SECURITY_SECRET_STORE
+        # sync-app       value: "true"
+        # sync-app     - name: SERVICE_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: STAGEGATE_BOOTSTRAPPER_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+        # sync-app       value: "54321"
+        # sync-app     - name: STAGEGATE_DATABASE_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: STAGEGATE_DATABASE_PORT
+        # sync-app       value: "6379"
+        # sync-app     - name: STAGEGATE_DATABASE_READYPORT
+        # sync-app       value: "6379"
+        # sync-app     - name: STAGEGATE_KONGDB_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: STAGEGATE_KONGDB_PORT
+        # sync-app       value: "5432"
+        # sync-app     - name: STAGEGATE_KONGDB_READYPORT
+        # sync-app       value: "54325"
+        # sync-app     - name: STAGEGATE_READY_TORUNPORT
+        # sync-app       value: "54329"
+        # sync-app     - name: STAGEGATE_REGISTRY_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: STAGEGATE_REGISTRY_PORT
+        # sync-app       value: "8500"
+        # sync-app     - name: STAGEGATE_REGISTRY_READYPORT
+        # sync-app       value: "54324"
+        # sync-app     - name: STAGEGATE_SECRETSTORESETUP_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+        # sync-app       value: "54322"
+        # sync-app     - name: STAGEGATE_WAITFOR_TIMEOUT
+        # sync-app       value: 60s
+        # sync-app     - name: REGISTRY_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: SERVICE_HOST
+        # sync-app       value: localhost
+        # sync-app     - name: SERVICE_SERVERBINDADDR
+        # sync-app       value: 0.0.0.0
+        # sync-app   image: edgexfoundry/sync-app:latest
+        # sync-app   ports:
+        # sync-app     - containerPort: 59740
+        # sync-app   volumeMounts:
+        # sync-app     - mountPath: /edgex-init
+        # sync-app       name: edgex-init
+        # sync-app       readOnly: true
+        # sync-app     - mountPath: /tmp/edgex/secrets/sync-app
+        # sync-app       name: sync-app-secrets
+        # sync-app       readOnly: true
+        # sync-app   resources: {}
+
+        - name: edgex-kong-db
+          command: 
+            - /edgex-init/postgres_wait_install.sh
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: POSTGRES_DB
+              value: kong
+            - name: POSTGRES_PASSWORD_FILE
+              value: /tmp/postgres-config/.pgpassword
+            - name: POSTGRES_USER
+              value: kong
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+          image: postgres:13.4-alpine
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/postgres-config
+              name: postgres-config
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-data
+            - mountPath: /var/run
+              name: kong-db-tmpfs0
+            # - mountPath: /tmp
+            #   name: kong-db-tmpfs1
+            - mountPath: /run
+              name: kong-db-tmpfs2
+
+        - name: edgex-security-proxy-setup
+          command: 
+            - /edgex-init/proxy_setup_wait_install.sh
+          securityContext:
+            runAsUser: 2002
+            runAsGroup: 2001
+            readOnlyRootFilesystem: true
+          env:
+            - name: ADD_PROXY_ROUTE
+              value: "device-virtual.http://localhost:59900, device-rest.http://localhost:59986, device-lora.http://localhost:59999, sync-app.http://localhost:59740"
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: KONGURL_SERVER
+              value: localhost
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: ROUTES_CORE_COMMAND_HOST
+              value: localhost
+            - name: ROUTES_CORE_CONSUL_HOST
+              value: localhost
+            - name: ROUTES_CORE_DATA_HOST
+              value: localhost
+            - name: ROUTES_CORE_METADATA_HOST
+              value: localhost
+            - name: ROUTES_DEVICE_VIRTUAL_HOST
+              value: localhost
+            - name: ROUTES_RULES_ENGINE_HOST
+              value: localhost
+            - name: ROUTES_SUPPORT_NOTIFICATIONS_HOST
+              value: localhost
+            - name: ROUTES_SUPPORT_SCHEDULER_HOST
+              value: localhost
+            - name: ROUTES_SYS_MGMT_AGENT_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/security-proxy-setup:2.1.0
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              readOnly: true
+            - mountPath: /tmp/edgex/secrets/consul-acl-token
+              name: consul-acl-token
+              readOnly: true
+            - mountPath: /tmp/edgex/secrets/security-proxy-setup
+              name: proxy-setup-secrets
+              readOnly: true
+
+        - name: edgex-security-secretstore-setup
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: ADD_KNOWN_SECRETS
+              value: redisdb[app-rules-engine],redisdb[device-virtual],redisdb[app-mqtt-export],redisdb[device-rest],redisdb[device-lora],redisdb[sync-app]
+            - name: ADD_SECRETSTORE_TOKENS
+              value: "app-mqtt-export,device-lora,sync-app"
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: EDGEX_GROUP
+              value: "2001"
+            - name: EDGEX_SECURITY_SECRET_STORE
+              value: "true"
+            - name: EDGEX_USER
+              value: "2002"
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: SECRETSTORE_HOST
+              value: localhost
+            - name: SECRETSTORE_PORT
+              value: "8200"
+            - name: SECUREMESSAGEBUS_TYPE
+              value: redis
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/shim-security-secretstore-setup:latest
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              readOnly: true
+            - mountPath: /tmp/edgex/secrets
+              name: secretstore-setup
+            - mountPath: /tmp/kong
+              name: kong
+            - mountPath: /tmp/kuiper
+              name: kuiper-sources
+            - mountPath: /tmp/kuiper-connections
+              name: kuiper-connections
+            - mountPath: /vault/config
+              name: vault-config
+            # - mountPath: /run
+            #   name: secretstore-setup-tmpfs0
+            # - mountPath: /vault
+            #   name: secretstore-setup-tmpfs1
+
+        - name: edgex-security-bootstrapper
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: EDGEX_GROUP
+              value: "2001"
+            - name: EDGEX_USER
+              value: "2002"
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: SERVICE_SERVERBINDADDR
+              value: 0.0.0.0
+          image: edgexfoundry/shim-security-bootstrapper:latest
+          volumeMounts:
+            - mountPath: /tmp/edgex-init
+              name: edgex-init
+
+        - name: edgex-vault
+          args:
+            - server
+          command: 
+            - /edgex-init/vault_wait_install.sh
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+            - name: VAULT_ADDR
+              value: http://localhost:8200
+            - name: VAULT_CONFIG_DIR
+              value: /vault/config
+            - name: VAULT_UI
+              value: "true"
+          image: vault:1.8.4
+          ports:
+            - containerPort: 8200
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /vault/file
+              name: vault-file
+            - mountPath: /vault/logs
+              name: vault-logs
+            - mountPath: /vault/config
+              name: vault-tmpfs0
+
+        - name: edgex-kong
+          command:
+            - /edgex-init/kong_wait_install.sh
+          securityContext:
+            runAsUser: 100
+            runAsGroup: 65533
+          env:
+            - name: API_GATEWAY_HOST
+              value: localhost
+            - name: API_GATEWAY_STATUS_PORT
+              value: "8100"
+            - name: KONG_ADMIN_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_ADMIN_ERROR_LOG
+              value: /dev/stderr
+            - name: KONG_ADMIN_LISTEN
+              value: 127.0.0.1:8001, 127.0.0.1:8444 ssl
+            - name: KONG_DATABASE
+              value: postgres
+            - name: KONG_DNS_ORDER
+              value: LAST,A,CNAME
+            - name: KONG_DNS_VALID_TTL
+              value: "1"
+            - name: KONG_PG_HOST
+              value: localhost
+            - name: KONG_PG_PASSWORD_FILE
+              value: /tmp/postgres-config/.pgpassword
+            - name: KONG_PROXY_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_PROXY_ERROR_LOG
+              value: /dev/stderr
+            - name: KONG_STATUS_LISTEN
+              value: 0.0.0.0:8100
+            - name: PROXY_SETUP_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_HOST
+              value: localhost
+            - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+              value: "54321"
+            - name: STAGEGATE_DATABASE_HOST
+              value: localhost
+            - name: STAGEGATE_DATABASE_PORT
+              value: "6379"
+            - name: STAGEGATE_DATABASE_READYPORT
+              value: "6379"
+            - name: STAGEGATE_KONGDB_HOST
+              value: localhost
+            - name: STAGEGATE_KONGDB_PORT
+              value: "5432"
+            - name: STAGEGATE_KONGDB_READYPORT
+              value: "54325"
+            - name: STAGEGATE_READY_TORUNPORT
+              value: "54329"
+            - name: STAGEGATE_REGISTRY_HOST
+              value: localhost
+            - name: STAGEGATE_REGISTRY_PORT
+              value: "8500"
+            - name: STAGEGATE_REGISTRY_READYPORT
+              value: "54324"
+            - name: STAGEGATE_SECRETSTORESETUP_HOST
+              value: localhost
+            - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+              value: "54322"
+            - name: STAGEGATE_WAITFOR_TIMEOUT
+              value: 60s
+          image: kong-patched:latest
+          ports:
+            - containerPort: 8000
+            - containerPort: 8100
+            - containerPort: 8443
+          tty: true
+          volumeMounts:
+            - mountPath: /edgex-init
+              name: edgex-init
+              # readOnly: true
+            - mountPath: /tmp/edgex/secrets/security-proxy-setup
+              name: proxy-setup-secrets
+              # readOnly: true
+            - mountPath: /tmp/postgres-config
+              name: postgres-config
+            - mountPath: /tmp/kong
+              name: kong
+            - mountPath: /run
+              name: kong-run-tmpfs
+            # - mountPath: /tmp
+            #   name: kong-tmp-tmpfs
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: db-data-NODENAME
+        - name: consul-config
+          persistentVolumeClaim:
+            claimName: consul-config-NODENAME
+        - name: consul-data
+          persistentVolumeClaim:
+            claimName: consul-data-NODENAME
+        - name: kuiper-data
+          persistentVolumeClaim:
+            claimName: kuiper-data-NODENAME
+        - name: edgex-init
+          persistentVolumeClaim:
+            claimName: edgex-init-NODENAME
+            # readOnly: true
+        - name: consul-acl-token
+          persistentVolumeClaim:
+            claimName: consul-acl-token-NODENAME
+        - name: consul-secrets
+          persistentVolumeClaim:
+            claimName: consul-secrets-NODENAME
+            # readOnly: true
+        - name: redis-config
+          persistentVolumeClaim:
+            claimName: redis-config-NODENAME
+        - name: database-secrets
+          persistentVolumeClaim:
+            claimName: database-secrets-NODENAME
+            # readOnly: true
+        - emptyDir:
+          # medium: Memory
+          name: database-tmpfs0
+        - name: system-secrets
+          persistentVolumeClaim:
+            claimName: system-secrets-NODENAME
+            # readOnly: true
+        - name: system-docker
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: kuiper-connections
+          persistentVolumeClaim:
+            claimName: kuiper-connections-NODENAME
+        - name: kuiper-sources
+          persistentVolumeClaim:
+            claimName: kuiper-sources-NODENAME
+        - name: app-service-mqtt-export-secrets
+          persistentVolumeClaim:
+            claimName: app-service-mqtt-export-secrets-NODENAME
+            # readOnly: true      
+        - name: metadata-secrets
+          persistentVolumeClaim:
+            claimName: metadata-secrets-NODENAME
+            # readOnly: true
+        - name: app-service-rules-secrets
+          persistentVolumeClaim:
+            claimName: app-service-rules-secrets-NODENAME
+            # readOnly: true
+        - name: command-secrets
+          persistentVolumeClaim:
+            claimName: command-secrets-NODENAME
+            # readOnly: true
+        - name: data-secrets
+          persistentVolumeClaim:
+            claimName: data-secrets-NODENAME
+            # readOnly: true        
+        - name: device-rest-secrets
+          persistentVolumeClaim:
+            claimName: device-rest-secrets-NODENAME
+        - name: device-virtual-secrets
+          persistentVolumeClaim:
+            claimName: device-virtual-secrets-NODENAME
+        - name: device-lora-secrets
+          persistentVolumeClaim:
+            claimName: device-lora-secrets-NODENAME
+        - name: notifications-secrets
+          persistentVolumeClaim:
+            claimName: notifications-secrets-NODENAME
+            # readOnly: true
+        - name: scheduler-secrets
+          persistentVolumeClaim:
+            claimName: scheduler-secrets-NODENAME
+            # readOnly: true
+        # Automatically uncommented if sync-app is enabled
+        # sync-app - name: sync-app-secrets
+        # sync-app   persistentVolumeClaim:
+        # sync-app     claimName: sync-app-secrets-NODENAME
+        - name: postgres-config
+          persistentVolumeClaim:
+            claimName: postgres-config-NODENAME
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data-NODENAME
+        - emptyDir:
+          # medium: Memory
+          name: kong-db-tmpfs0
+        - emptyDir:
+          # medium: Memory
+          name: kong-db-tmpfs1
+        - emptyDir:
+          # medium: Memory
+          name: kong-db-tmpfs2
+        - name: proxy-setup-secrets
+          persistentVolumeClaim:
+            claimName: proxy-setup-secrets-NODENAME
+            # readOnly: true        
+        - name: secretstore-setup
+          persistentVolumeClaim:
+            claimName: secretstore-setup-NODENAME
+        - name: kong
+          persistentVolumeClaim:
+            claimName: kong-NODENAME
+        - name: vault-config
+          persistentVolumeClaim:
+            claimName: vault-config-NODENAME
+        - emptyDir:
+          # medium: Memory
+          name: secretstore-setup-tmpfs0
+        - emptyDir:
+          # medium: Memory
+          name: secretstore-setup-tmpfs1        
+        - name: vault-file
+          persistentVolumeClaim:
+            claimName: vault-file-NODENAME
+        - name: vault-logs
+          persistentVolumeClaim:
+            claimName: vault-logs-NODENAME
+        - emptyDir:
+          # medium: Memory
+          name: vault-tmpfs0
+          #- name: kong-claim1
+          #persistentVolumeClaim:
+          #claimName: kong-claim1-NODENAME
+          # readOnly: true
+        - emptyDir:
+          # medium: Memory
+          name: kong-run-tmpfs
+        # - emptyDir:
+        #   # medium: Memory
+        #   name: kong-tmp-tmpfs
+        # Automatically uncommented if device-lora is enabled
+        # device-lora - name: dev-ttyusb0
+        # device-lora   hostPath:
+        # device-lora     path: /dev/ttyUSB0
+
+      # NOTE: Using nodeName leads to persistent volume claims not being bound
+      # See https://github.com/openebs/openebs/issues/2915
+      nodeSelector:
+        kubernetes.io/hostname: NODENAME

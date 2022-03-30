@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  creationTimestamp: null
+  name: edgex-network-NODENAME
+spec:
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: edgex-NODENAME
+              name: edgex-NODENAME
+  podSelector:
+    matchLabels:
+      app: edgex-NODENAME
+      name: edgex-NODENAME

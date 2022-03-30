@@ -1,0 +1,54 @@
+---
+- hosts: master
+  connection: local
+  vars:
+    edge_nodes: "{{ query('inventory_hostnames', 'edge_nodes') }}"
+    kube_policies: "{{ lookup('fileglob','../../edgex/policies/*.yaml', wantlist=true) }}"
+    kube_volumes: "{{ lookup('fileglob','../../edgex/volumes/*.yaml', wantlist=true) }}"
+    kube_deployments: "{{ lookup('fileglob','../../edgex/deployments/*.yaml', wantlist=true) }}"
+    kube_claims: "{{ lookup('fileglob','../../edgex/claims/*.yaml', wantlist=true) }}"
+    kube_services: "{{ lookup('fileglob','../../edgex/services/*.yaml', wantlist=true) }}"
+
+  tasks:
+    - name: Delete deployments
+      kubernetes.core.k8s:
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        namespace: default
+        state: absent 
+      loop: "{{ edge_nodes | product(kube_deployments) | list }}"
+
+    - name: Delete service definitions
+      kubernetes.core.k8s:
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        namespace: default
+        state: absent
+      loop: "{{ edge_nodes | product(kube_services) | list }}"
+
+    - name: Delete claim definitions
+      kubernetes.core.k8s:
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        namespace: default
+        state: absent 
+      loop: "{{ edge_nodes | product(kube_claims) | list }}"
+
+    - name: Delete persistent volume resources
+      kubernetes.core.k8s:
+        src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+        state: absent 
+      loop: "{{ edge_nodes | product(kube_volumes) | list }}"
+
+      # Network policies are not used currently.
+      # - name: Delete policies
+      #   kubernetes.core.k8s:
+      #     src: "{{ config_dir }}/{{ item[0] }}/{{ item[1] | basename }}"
+      #     namespace: default
+      #     state: absent
+      #   loop: "{{ edge_nodes | product(kube_policies) | list }}"
+
+- hosts: edge_nodes
+  tasks:
+    - name: Remove local volumes
+      become: true
+      ansible.builtin.file:
+        path: /opt/lfedge/volumes
+        state: absent

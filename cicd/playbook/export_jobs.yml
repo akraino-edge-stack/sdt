@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+  connection: local
+  tasks: 
+    - name: Get the list of Jenkins jobs
+      find:
+        paths: /var/lib/jenkins/jobs
+        recurse: yes
+        patterns: 'config.xml'
+      register: jobs
+    - name: Copy jobs to ../jenkins/jobs
+      fetch:
+        src: "{{ item }}"
+        dest: "..{{ item | regex_replace('^/var/lib') | regex_replace('config\\.xml$') }}"
+        flat: yes
+      loop: "{{ jobs.files|map(attribute='path')|list }}"
+      when: jobs.files|length > 0

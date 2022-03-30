@@ -1,0 +1,27 @@
+---
+- hosts: localhost
+  connection: local
+
+  tasks: 
+    - name: Copy sync-app source
+      ansible.builtin.copy:
+        remote_src: yes
+        src:  "../../edgex/sync-app/"
+        dest: "~/edgexfoundry/sync-app"
+
+    - name: Make sync-app amd64 image
+      make:
+        chdir: "~/edgexfoundry/sync-app"
+        target: docker
+
+    - name: Copy device-lora source
+      ansible.builtin.copy:
+        remote_src: yes
+        src:  "../../edgex/device-lora/"
+        dest: "~/edgexfoundry/device-lora"
+
+    - name: Make device-lora amd64 image
+      make:
+        chdir: "~/edgexfoundry/device-lora"
+        target: docker
+

@@ -1,0 +1,3 @@
+device_virtual: false
+device_lora: true
+sync_app: true

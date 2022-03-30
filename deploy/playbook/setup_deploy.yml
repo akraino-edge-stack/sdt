@@ -1,0 +1,81 @@
+---
+- hosts: localhost
+  connection: local
+  tasks: 
+    - name: Install Basic Build Tools
+      become: true
+      apt:
+        pkg:
+          - make
+          - build-essential
+          - python3-pip
+
+    - name: Add Ansible repository
+      # Required to get the latest version of Ansible
+      # Ubuntu 20.04's default 2.9.6 does not play well with kubernetes.core
+      become: true
+      ansible.builtin.apt_repository:
+        repo: ppa:ansible/ansible
+        state: present
+    - name: Install Ansible
+      become: true
+      apt:
+        pkg:
+          - ansible
+
+    - name: Test if community.docker is installed
+      stat:
+        path: ~/.ansible/collections/ansible_collections/community/docker/MANIFEST.json
+      register: docker_collection
+    - name: Install the community.docker collection
+      command:
+        cmd: ansible-galaxy collection install community.docker
+      when: not docker_collection.stat.exists
+
+    - name: Test if kubernetes.core is installed
+      stat:
+        path: ~/.ansible/collections/ansible_collections/kubernetes/core/MANIFEST.json
+      register: kube_collection
+    - name: Install the kubernetes.core collection
+      # See http://blog.networktocode.com/post/kubernetes-collection-ansible/
+      command:
+        cmd: ansible-galaxy collection install kubernetes.core
+      when: not kube_collection.stat.exists
+    - name: Install kubernetes for Python
+      # Required by kubernetes.core
+      pip:
+        name:
+          - kubernetes
+
+    - name: Test if community.crypto is installed
+      stat:
+        path: ~/.ansible/collections/ansible_collections/community/crypto/MANIFEST.json
+      register: crypto_collection
+    - name: Install the community.crypto collection
+      command:
+        cmd: ansible-galaxy collection install community.crypto
+      when: not crypto_collection.stat.exists
+
+    - name: Add master node to /etc/hosts (if master is not hostname)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
+        line: "{{ master_ip }} master"
+        insertbefore: BOF
+      when: (ansible_facts['nodename'] != "master")
+    - name: Add edge nodes to /etc/hosts
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+{{ item }}"
+        line: "{{ hostvars[item]['ip'] }} {{ item }}"
+        insertbefore: BOF
+      loop: "{{ query('inventory_hostnames', 'edge_nodes') }}"
+

@@ -1,0 +1,24 @@
+---
+- hosts: arm-build
+
+  tasks: 
+    - name: Copy sync-app source
+      ansible.builtin.copy:
+        src:  "../../edgex/sync-app/"
+        dest: "~/edgexfoundry/sync-app"
+
+    - name: Make sync-app arm64 image
+      make:
+        chdir: "~/edgexfoundry/sync-app"
+        target: docker-arm
+
+    - name: Copy device-lora source
+      ansible.builtin.copy:
+        src:  "../../edgex/device-lora/"
+        dest: "~/edgexfoundry/device-lora"
+
+    - name: Make device-lora arm64 image
+      make:
+        chdir: "~/edgexfoundry/device-lora"
+        target: docker-arm
+

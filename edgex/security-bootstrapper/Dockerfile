@@ -1,0 +1,38 @@
+# COPYRIGHT 2022 FUJITSU LIMITED
+#
+# SPDX-License-Identifier: Apache-2.0
+
+FROM edgexfoundry/security-bootstrapper:2.1.0 AS original
+FROM alpine:3.14
+LABEL license='SPDX-License-Identifier: Apache-2.0' \
+      copyright='Copyright (c) 2021 Intel Corporation'
+
+RUN apk add --update --no-cache dumb-init su-exec
+
+ENV SECURITY_INIT_DIR /edgex-init
+RUN mkdir -p ${SECURITY_INIT_DIR}
+WORKDIR ${SECURITY_INIT_DIR}
+
+# copy all entrypoint scripts and config folder
+COPY --from=original ${SECURITY_INIT_DIR}/ .
+
+# Workaround for Kong docker file
+RUN sed -i -e 's|/usr/local/kong/kong.yml|/tmp/kong/kong.yml|g' ./kong_wait_install.sh
+# Workaround for not being able to override edgex-vault host name
+RUN sed -i -e 's|edgex-vault:8200|localhost:8200|g' ./vault_wait_install.sh
+RUN sed -i -e 's|edgex-vault:8201|localhost:8201|g' ./vault_wait_install.sh
+# Workaround for proxy setup constantly restarting after finish
+RUN sed -i 's|exec /edgex/security-proxy-setup --init=true|/edgex/security-proxy-setup --init=true; until false; do sleep 15; done|g' ./proxy_setup_wait_install.sh
+# Workaround for /kuiper/etc/sources being hidden by sharing it
+RUN sed -i -e '2 i cp /kuiper/etc/sources/* /tmp/sources' ./kuiper_wait_install.sh
+RUN sed -i -e '3 i rm -rf /kuiper/etc/sources' ./kuiper_wait_install.sh
+RUN sed -i -e '4 i ln -s /tmp/sources /kuiper/etc/sources' ./kuiper_wait_install.sh
+
+COPY --from=original /Attribution.txt /
+COPY --from=original /entrypoint.sh /
+
+RUN sed -i -e '2 i cp -Rp /edgex-init/* /tmp/edgex-init' /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+CMD ["gate"]

@@ -1,0 +1,72 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Test the LF Edge K8s cluster management scripts</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@4.10.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>http://gitlab.falcon.qnet.fujitsu.com/iown/lf-edge.git</url>
+        <credentialsId>lfedge-gitlab-login</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/develop</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="empty-list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/usr/bin/bash
+
+# TODO: Passing raw passwords like this is less than ideal.
+robot -v DEPLOY_KEY:$DEPLOY_KEY -v DEPLOY_USER:$DEPLOY_USER -v DEPLOY_PWD:$DEPLOY_PWD ./cicd/tests/cluster</command>
+      <configuredLocalRules/>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.robot.RobotPublisher plugin="robot@3.0.1">
+      <archiveDirName>robot-plugin</archiveDirName>
+      <outputPath></outputPath>
+      <reportFileName>report.html</reportFileName>
+      <logFileName>log.html</logFileName>
+      <outputFileName>output.xml</outputFileName>
+      <disableArchiveOutput>false</disableArchiveOutput>
+      <passThreshold>100.0</passThreshold>
+      <unstableThreshold>100.0</unstableThreshold>
+      <otherFiles>
+        <string></string>
+      </otherFiles>
+      <overwriteXAxisLabel></overwriteXAxisLabel>
+      <enableCache>true</enableCache>
+      <onlyCritical>true</onlyCritical>
+    </hudson.plugins.robot.RobotPublisher>
+  </publishers>
+  <buildWrappers>
+    <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@1.27">
+      <bindings>
+        <org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
+          <credentialsId>lfedge-deploy-key</credentialsId>
+          <keyFileVariable>DEPLOY_KEY</keyFileVariable>
+          <usernameVariable>DEPLOY_USER</usernameVariable>
+        </org.jenkinsci.plugins.credentialsbinding.impl.SSHUserPrivateKeyBinding>
+        <org.jenkinsci.plugins.credentialsbinding.impl.StringBinding>
+          <credentialsId>lfedge-deploy-password</credentialsId>
+          <variable>DEPLOY_PWD</variable>
+        </org.jenkinsci.plugins.credentialsbinding.impl.StringBinding>
+      </bindings>
+    </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+  </buildWrappers>
+</project>
