@@ -1,6 +1,5 @@
 ---
 - hosts: master
-  connection: local
   vars:
     keypath: /opt/lfedge/keys
     cakeyfile: master.key
@@ -80,6 +79,7 @@
       # Enable local docker commands to connect
       become: true
       ansible.builtin.copy:
+        remote_src: yes
         src: "{{ keypath }}/{{ certfile }}"
         dest: "{{ certpath }}/{{ certfile }}"
 

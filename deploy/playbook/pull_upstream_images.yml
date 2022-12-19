@@ -1,6 +1,5 @@
 ---
 - hosts: master
-  connection: local
   vars:
     edgex_deployments: "{{ lookup('fileglob', '../../edgex/deployments/*.yaml', wantlist=true) }}"
 
@@ -121,6 +120,12 @@
       command:
         cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
       loop: "{{ edgex_images }}"
+
+    - name: Copy cluster config
+      # Required by kubeadm to get the image list
+      ansible.builtin.copy:
+        content: "{{ lookup('file', 'k8s/config.yml') | regex_replace('master_ip', master_ip) }}"
+        dest: "{{ config_dir }}/config.yml"
 
     - name: Get the list of Kubernetes images
       command:

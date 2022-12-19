@@ -1,6 +1,5 @@
 ---
 - hosts: master
-  connection: local
   vars:
     edgex_deployments: "{{ lookup('fileglob', '../../edgex/deployments/*.yaml', wantlist=true) }}"
 

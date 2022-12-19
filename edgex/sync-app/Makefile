@@ -33,18 +33,30 @@ build: tidy
 tidy:
 	go mod tidy
 
-docker:
+# NOTE: Configure the location of an apt proxy configuration file if necessary.
+# If the file does not exist no proxy will be used.
+APT_PROXY_FILE=90proxy
+APT_PROXY_PATH=/etc/apt/apt.conf.d/$(APT_PROXY_FILE)
+
+$(APT_PROXY_FILE):
+	if [ -f $(APT_PROXY_PATH) ]; then cp $(APT_PROXY_PATH) ./$(APT_PROXY_FILE) ; else touch ./$(APT_PROXY_FILE); fi
+
+docker: $(APT_PROXY_FILE)
 	docker build \
-	    --network=host \
+		--network=host \
+		--build-arg HTTP_PROXY=$(HTTP_PROXY) \
+		--build-arg HTTPS_PROXY=$(HTTPS_PROXY) \
 		-f Dockerfile \
-                -t edgexfoundry/sync-app-amd64:latest \
+		-t edgexfoundry/sync-app-amd64:latest \
 		.
 
-docker-arm:
+docker-arm: $(APT_PROXY_FILE)
 	docker build \
-	    --network=host \
+		--network=host \
+		--build-arg HTTP_PROXY=$(HTTP_PROXY) \
+		--build-arg HTTPS_PROXY=$(HTTPS_PROXY) \
 		-f Dockerfile-arm \
-                -t edgexfoundry/sync-app-arm64:latest \
+		-t edgexfoundry/sync-app-arm64:latest \
 		.
 
 test:
@@ -55,3 +67,4 @@ test:
 
 clean:
 	rm -f $(MICROSERVICE)
+	rm -f $(APT_PROXY_FILE)

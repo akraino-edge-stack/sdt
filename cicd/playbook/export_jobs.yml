@@ -1,6 +1,5 @@
 ---
-- hosts: localhost
-  connection: local
+- hosts: cicd
   tasks: 
     - name: Get the list of Jenkins jobs
       find:

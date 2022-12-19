@@ -15,6 +15,5 @@ Setup Master Node
     Should Contain         ${output}                  kubectl
     Should Contain         ${output}                  kubelet
     Should Contain         ${output}                  kubeadm
-    File Should Exist      /opt/lfedge/config.yml
-    File Should Exist      /opt/lfedge/kube-flannel.yml
-    File Should Exist      /opt/lfedge/kube-flannel-private.yml
+    File Should Exist      ${HOME}/.lfedge/kube-flannel.yml
+    File Should Exist      ${HOME}/.lfedge/kube-flannel-private.yml

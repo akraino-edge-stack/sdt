@@ -1,6 +1,5 @@
 ---
 - hosts: master
-  connection: local
   vars:
     edge_nodes: "{{ query('inventory_hostnames', 'edge_nodes') }}"
     kube_policies: "{{ lookup('fileglob','../../edgex/policies/*.yaml', wantlist=true) }}"

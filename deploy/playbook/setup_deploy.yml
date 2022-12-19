@@ -1,6 +1,10 @@
 ---
 - hosts: localhost
   connection: local
+  vars:
+    master_name: "{{ query('inventory_hostnames', 'master') }}"
+    build_name: "{{ query('inventory_hostnames', 'build') }}"
+    cicd_name: "{{ query('inventory_hostnames', 'cicd') }}"
   tasks: 
     - name: Install Basic Build Tools
       become: true
@@ -9,6 +13,7 @@
           - make
           - build-essential
           - python3-pip
+          - software-properties-common
 
     - name: Add Ansible repository
       # Required to get the latest version of Ansible
@@ -19,9 +24,10 @@
         state: present
     - name: Install Ansible
       become: true
-      apt:
+      ansible.builtin.apt:
         pkg:
           - ansible
+        state: latest
 
     - name: Test if community.docker is installed
       stat:
@@ -41,11 +47,6 @@
       command:
         cmd: ansible-galaxy collection install kubernetes.core
       when: not kube_collection.stat.exists
-    - name: Install kubernetes for Python
-      # Required by kubernetes.core
-      pip:
-        name:
-          - kubernetes
 
     - name: Test if community.crypto is installed
       stat:
@@ -56,6 +57,19 @@
         cmd: ansible-galaxy collection install community.crypto
       when: not crypto_collection.stat.exists
 
+    # This is mainly used by robot framework scripts in cicd/tests/ directory
+    - name: Add master name to /etc/hosts (if master name is not hostname)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+master"
+        line: "{{ master_ip }} master"
+        insertbefore: BOF
+      when: (ansible_facts['nodename'] != 'master')
+    # This is mainly used by ansible playbook scripts
     - name: Add master node to /etc/hosts (if master is not hostname)
       become: true
       ansible.builtin.lineinfile:
@@ -63,10 +77,11 @@
         state: present
         create: yes
         backup: yes
-        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
-        line: "{{ master_ip }} master"
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+{{ master_name[0] }}"
+        line: "{{ master_ip }} {{ master_name[0] }}"
         insertbefore: BOF
-      when: (ansible_facts['nodename'] != "master")
+      when: (ansible_facts['nodename'] != master_name[0])
+    # This is mainly used by ansible playbook script to install edge node from deploy node
     - name: Add edge nodes to /etc/hosts
       become: true
       ansible.builtin.lineinfile:
@@ -74,8 +89,33 @@
         state: present
         create: yes
         backup: yes
-        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+{{ item }}"
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+{{ item }}"
         line: "{{ hostvars[item]['ip'] }} {{ item }}"
         insertbefore: BOF
       loop: "{{ query('inventory_hostnames', 'edge_nodes') }}"
+    # This is mainly used by ansible playbook script to install build node from deploy node
+    - name: Add build node to /etc/hosts (if build is not hostname)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+{{ build_name[0] }}"
+        line: "{{ hostvars[build_name[0]]['ip'] }} {{ build_name[0] }}"
+        insertbefore: BOF
+      when: (ansible_facts['nodename'] != build_name[0])
+    # This is mainly used by ansible playbook script to install cicd node from deploy node
+    - name: Add cicd node to /etc/hosts (if cicd is not hostname)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+{{ cicd_name[0] }}"
+        line: "{{ hostvars[cicd_name[0]]['ip'] }} {{ cicd_name[0] }}"
+        insertbefore: BOF
+      when: (ansible_facts['nodename'] != cicd_name[0])
+
 

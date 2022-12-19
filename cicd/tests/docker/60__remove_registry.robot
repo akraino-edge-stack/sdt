@@ -6,12 +6,12 @@ Suite Teardown    Close All Connections
 
 *** Test Cases ***
 Remove Docker registry
-    ${output}=                 Execute Command            docker ps
-    Should Not Match Regexp    ${output}                  registry
-    ${output}=                 Execute Command            docker container ls --all
-    Should Match Regexp        ${output}                  registry
+    ${output}=                 Execute Command            ssh master docker ps
+    Should Not Contain         ${output}                  registry
+    ${output}=                 Execute Command            ssh master docker container ls --all
+    Should Contain             ${output}                  registry
     ${rc}=                     Execute Playbook           remove_registry.yml
     Should Be Equal            ${rc}                      ${0}
-    ${output}=                 Execute Command            docker container ls --all
-    Should Not Match Regexp    ${output}                  registry
+    ${output}=                 Execute Command            ssh master docker container ls --all
+    Should Not Contain         ${output}                  registry
 

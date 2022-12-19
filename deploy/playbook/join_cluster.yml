@@ -1,6 +1,5 @@
 ---
 - hosts: master
-  connection: local
   tasks: 
     - name: Get join command data
       command:
@@ -14,9 +13,7 @@
   tasks:
     - name: Join cluster
       become: true
-      # NOTE: This relies on the master being the "localhost" node above.
-      # FIXME: Output the result to a file to avoid joining when already joined?
+      # NOTE: This relies on there being only one master node.
+      # FIXME: Check if the node is already in the cluster and skip?
       command:
-        cmd: "{{ hostvars['localhost'].join_cmd }}"
-        # chdir: $HOME
-        # creates: node_join.txt
+        cmd: "{{ hostvars[groups['master'][0]].join_cmd }}"

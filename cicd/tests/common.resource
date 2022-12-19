@@ -3,12 +3,16 @@ Library          SSHLibrary
 Library          String
 
 *** Variables ***
-${HOME}             /home/colin
-${DEPLOY_HOST}      localhost
-${DEPLOY_USER}      colin
+${HOME}             /home/sdt-admin
+${DEPLOY_HOST}      sdt-deploy
+${DEPLOY_USER}      sdt-admin
 ${DEPLOY_KEY}       ${HOME}/.ssh/lfedge_deploy
 ${DEPLOY_PWD}       password
 ${PLAYBOOK_PATH}    lf-edge/deploy/playbook
+${EDGE_HOST1}       jet03
+${EDGE_HOST2}       jet04
+${EDGE_USER}        edge
+${EDGE_KEY}         ${HOME}/.ssh/edge
 
 *** Keywords ***
 Log In To Deploy Server
@@ -48,9 +52,15 @@ Execute CICD Become Playbook
     ${rc}=             Execute CICD Playbook   ${playbook}    True
     [Return]           ${rc}
 
+Kubectl
+    [Documentation]    Execute a kubectl command on master
+    [Arguments]        ${options}
+    ${output}=         Execute Command    ssh master kubectl ${options}
+    [Return]           ${output}
+
 All Nodes Ready
     [Documentation]        Confirm that all K8s nodes are ready
-    ${output}=             Execute Command        kubectl get nodes
+    ${output}=             Kubectl                get nodes
     Should Match Regexp    ${output}              ^NAME
     @{lines}=              Split To Lines         ${output}     1
     FOR                    ${line}                IN            @{lines}
@@ -63,7 +73,7 @@ Wait Until All Nodes Ready
 
 All Pods Running
     [Documentation]        Confirm that all pods in default namespace are running
-    ${output}              Execute Command        kubectl get pods
+    ${output}              Kubectl                get pods
     Should Match Regexp    ${output}              ^NAME
     @{lines}=              Split To Lines         ${output}     1
     FOR                    ${line}                IN            @{lines}
@@ -73,3 +83,13 @@ All Pods Running
 Wait Until All Pods Running
     [Documentation]    Wait until All Pods Running succeeds or a 4min timeout
     Wait Until Keyword Succeeds    4 min    15 s    All Pods Running
+
+Execute Commands
+    [Documentation]    Execute shell commands
+    [Arguments]        ${options}
+    ${rc}=             Execute Command
+    ...                ${options}
+    ...                return_stdout=False
+    ...                return_rc=True
+    ...                output_during_execution=True
+    [Return]           ${rc}

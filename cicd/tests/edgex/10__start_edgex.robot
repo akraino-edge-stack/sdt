@@ -10,21 +10,21 @@ Start EdgeX
     Should Be Equal            ${rc}                      ${0}
 Check All Pods Are Running
     Sleep                      20s
-    ${output}=                 Execute Command     kubectl get pods
+    ${output}=                 Kubectl             get pods
     Should Match Regexp        ${output}           ^NAME
     Should Contain             ${output}           edgex
     Wait Until All Pods Running
 Ping All Pods
-    ${output}=             Execute Command        kubectl get pods -o=custom-columns=NAME:.metadata.name,IP:.status.podIP
+    ${output}=             Kubectl                get pods -o=custom-columns=NAME:.metadata.name,IP:.status.podIP
     Should Match Regexp    ${output}              ^NAME
     @{lines}=              Split To Lines         ${output}     1
     FOR                    ${line}                IN                     @{lines}
                            ${output}=             Split String           ${line}
-                           ${ping}                Execute Command        ping ${output}[1] -c 5
+                           ${ping}                Execute Command        ssh master ping ${output}[1] -c 5
                            Should Contain         ${ping}                0% packet loss
     END                
 Check All Containers Are Running
-    ${output}=             Execute Command        kubectl get pods --namespace=default -o=custom-columns=NAME:.metadata.name,CONTAINERS:.status.containerStatuses[*].name
+    ${output}=             Kubectl                get pods --namespace=default -o=custom-columns=NAME:.metadata.name,CONTAINERS:.status.containerStatuses[*].name
     @{lines}=              Split To Lines         ${output}     1
     FOR                    ${line}                IN                     @{lines}
                            ${output}=             Split String           ${line}

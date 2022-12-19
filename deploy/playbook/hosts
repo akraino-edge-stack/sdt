@@ -6,7 +6,7 @@ all:
         localhost:
     master:
       hosts:
-        localhost:
+        sdt-master:
     edge_nodes:
       hosts:
         jet01:
@@ -18,3 +18,13 @@ all:
       vars:
         ansible_user: edge
         ansible_ssh_private_key_file: ~/.ssh/edge
+    # This is required so we can use script to setup build node on deploy node
+    build:
+      hosts:
+        sdt-build:
+          ip: 192.168.10.203
+    # This is required so we can use script to setup cicd node on deploy node
+    cicd:
+      hosts:
+        sdt-cicd:
+          ip: 192.168.10.200

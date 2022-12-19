@@ -10,9 +10,11 @@ networking:
 apiServer:
   extraArgs:
     enable-admission-plugins: PodSecurityPolicy
+kubernetesVersion: v1.22.9
 ---
 kind: InitConfiguration
 apiVersion: kubeadm.k8s.io/v1beta3
 nodeRegistration:
+  name: master
   kubeletExtraArgs:
     node-ip: master_ip

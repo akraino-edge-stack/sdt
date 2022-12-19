@@ -1,19 +1,18 @@
 ---
 - hosts: master
-  connection: local
   tasks: 
-
-    - name: Add master node to /etc/hosts (if master is not hostname)
+    # This is required so we can manage the Docker registry
+    - name: Add master to /etc/hosts (if master is not hostname)
       become: true
       ansible.builtin.lineinfile:
         path: /etc/hosts
         state: present
         create: yes
         backup: yes
-        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+master"
         line: "{{ master_ip }} master"
         insertbefore: BOF
-      when: (ansible_facts['nodename'] != "master")
+      when: (ansible_facts['nodename'] != 'master')
     - name: Add edge nodes to /etc/hosts
       become: true
       ansible.builtin.lineinfile:
@@ -21,7 +20,7 @@
         state: present
         create: yes
         backup: yes
-        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+{{ item }}"
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+{{ item }}"
         line: "{{ hostvars[item]['ip'] }} {{ item }}"
         insertbefore: BOF
       loop: "{{ query('inventory_hostnames', 'edge_nodes') }}"
@@ -31,6 +30,7 @@
       ansible.builtin.apt:
         update_cache: yes
         pkg:
+          - software-properties-common
           - apt-transport-https
           - ca-certificates
           - curl
@@ -63,6 +63,7 @@
         groups: docker
         update_password: on_create
     - name: Install Docker for Python # required for start_registry
+      become: true
       pip:
         state: present
         name: docker
@@ -84,6 +85,7 @@
       when: docker_conf.changed
     - name: Install Python cryptography
       # Required to generate certificates for docker
+      become: true
       pip:
         state: present
         name: cryptography
@@ -134,9 +136,9 @@
       apt:
         update_cache: yes
         pkg:
-          - kubectl=1.22*
-          - kubelet=1.22*
-          - kubeadm=1.22*
+          - kubectl=1.22.9*
+          - kubelet=1.22.9*
+          - kubeadm=1.22.9*
       # NOTE: The following requirements for k8s are met by default
       # sysctl net.bridge.bridge-nf-call-iptables = 1
       # modprobe br_netfilter
@@ -167,4 +169,11 @@
       ansible.builtin.copy:
         content: "{{ flannel_cfg }}"
         dest: "{{ config_dir }}/kube-flannel-private.yml"
+
+    - name: Install kubernetes for Python
+      become: true
+      # Required by Ansible kubernetes.core module
+      pip:
+        name:
+          - kubernetes
 

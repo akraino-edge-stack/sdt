@@ -14,16 +14,20 @@
 # limitations under the License.
 #
 
-ARG BASE=golang:1.16-alpine3.14
+# NOTE: Using Debian bullseye image instead of alpine because of difficulties
+# with apk and proxy settings
+# ARG BASE=golang:1.16-alpine3.14
+ARG BASE=golang:1.16-bullseye
 FROM ${BASE} AS builder
 
 ARG MAKE=make build
 
 WORKDIR /device-lora
 
-RUN sed -e 's/dl-cdn[.]alpinelinux.org/nl.alpinelinux.org/g' -i~ /etc/apk/repositories
-
-RUN apk add --update --no-cache make git gcc libc-dev zeromq-dev libsodium-dev
+# RUN apk add --update --no-cache make git gcc libc-dev zeromq-dev libsodium-dev
+COPY 90proxy /etc/apt/apt.conf.d
+RUN apt update
+RUN apt install -y make git gcc libc-dev libsodium-dev libzmq3-dev
 
 COPY go.mod .
 RUN go mod download all
@@ -32,13 +36,16 @@ COPY . .
 RUN make cmd/device-lora
 
 # Next image - Copy built Go binary into new workspace
-FROM alpine:3.14
+# FROM alpine:3.14
+FROM debian:bullseye
 LABEL license='SPDX-License-Identifier: Apache-2.0' \
   copyright='Copyright (c) 2022: Fujitsu Limited'
 
-RUN sed -e 's/dl-cdn[.]alpinelinux.org/nl.alpinelinux.org/g' -i~ /etc/apk/repositories
-
-RUN apk add --update --no-cache zeromq dumb-init
+# RUN apk add --update --no-cache zeromq dumb-init
+COPY --from=builder /etc/apt/apt.conf.d/90proxy /etc/apt/apt.conf.d/90proxy
+RUN apt update
+RUN apt install -y ca-certificates libzmq5 dumb-init
+RUN rm /etc/apt/apt.conf.d/90proxy
 
 WORKDIR /
 COPY --from=builder /device-lora/cmd/ /

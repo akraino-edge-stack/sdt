@@ -1,6 +1,5 @@
 ---
 - hosts: master
-  connection: local
   tasks: 
     - name: Remove Docker Registry
       community.docker.docker_container:

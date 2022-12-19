@@ -18,7 +18,7 @@ playbooks as they will not change anything that is not required.
 
 In addition, the `community.docker` and `kubernetes.core` collections for
 Ansible need to be installed on the deploy node. This is automatically
-done by the `setup_cicd.yml` playbook in `cicd/playbook`, or can be done
+done by the `setup_deploy.yml` playbook, or can be done
 using the following commands (executed by the user who will run the deploy
 playbooks on the deploy node) after Ansible is installed.
 
@@ -32,8 +32,8 @@ ansible-galaxy collection install kubernetes.core
 The admin user must have sudo privileges on the edge nodes. Set the
 sudo password in the `deploy/playbook/group_vars/edge_nodes/secret` file.
 
-Add the node names to the `hosts` file in this directory, under the
-`edge_nodes` group. The example below configures one edge node named "edge".
+Add the node names of cicd, build, master and edge nodes to the `hosts` file in this directory.
+The example below configures one edge node named "edge".
 Take care to include the colon after the host name.
 
 ```
@@ -43,9 +43,9 @@ Take care to include the colon after the host name.
           ip: 192.168.2.14
 ```
 
-Add IP addresses to the hosts file for each edge node as shown above.
-These will be added to the master node's `/etc/hosts` file by the master
-install script (if they are not already present). Also, set the master
+Add IP addresses to the hosts file for cicd, build and edge nodes as shown above.
+These will be added to the deploy node's `/etc/hosts` file by the setup deploy
+script (if they are not already present). Also, set the master
 IP address appropriately in the file `deploy/playbook/group_vars/all`.
 
 ```
@@ -158,6 +158,12 @@ ansible-playbook -i ./hosts pull_upstream_images.yml
 This script will pull the images from Docker Hub, and the Kubernetes
 and Flannel default registries, and push them to the local registry service.
 
+NOTE: Docker Hub limits anonymous users to 100 image pull requests within a
+six hour period. You may see errors like `You have reached your pull rate
+limit` or `Too Many Requests` when running playbooks that pull upstream
+images (including `start_registry.yml` and `pull_upstream_images.yml`).
+See https://www.docker.com/increase-rate-limits/
+
 The `clean_local_images.yml` playbook will remove the upstream images from
 the local host. It will not remove the images from the local registry.
 To clean the local registry, use the `remove_registry.yml` playbook, which
@@ -226,6 +232,8 @@ by `reset_cluster.yml`.
 
 ### EdgeX Services
 
+Before starting the edgex services, `camera_ip` and `destination_host` in the files in `deploy/playbook/host_vars` directory needs to be modified first.
+
 To start the EdgeX services on the Edge nodes, run the `edgex_start.yml`
 playbook.
 
@@ -262,6 +270,8 @@ The device service variables are as follows:
 for testing purposes.
 * `device_lora`: Enables the temperature sensor reading via a LoRa transport
 service (see `edgex/device-lora` for details).
+* `device_camera`: Enables getting the image data from IP Camera
+service (see `edgex/device-camera` for details).
 
 At this time the device-rest service is always installed to
 provide the ability to exchange data between nodes.
@@ -273,9 +283,9 @@ that require the `--ask-become-pass` option will prompt for the sudo password
 of the master node admin user (the user running the playbook).
 
 1. Install Ansible: `sudo add-apt-repository ppa:ansible/ansible && sudo apt-get install ansible`
-1. Add the `community.docker` and `kubernetes.core` Ansible collections: `ansible-galaxy collection install community.docker` and `ansible-galaxy collection install kubernetes.core` (or run `ansible-playbook -i ./hosts setup_cicd.yml --ask-become-pass` in `cicd/playbook`, which will also install Jenkins and Robot Framework).
+1. Add the `community.docker` and `kubernetes.core` Ansible collections: `ansible-galaxy collection install community.docker` and `ansible-galaxy collection install kubernetes.core` .
 1. Set the edge node admin user's sudo password in `deploy/playbook/group_vars/edge_nodes/secret`.
-1. Add the edge nodes and their IP addresses to the `deploy/playbook/hosts` file.
+1. Add the cicd, build and edge nodes and their IP addresses to the `deploy/playbook/hosts` file.
 1. Set the master node's IP address in the `deploy/playbook/group_vars/all` file.
 1. Install and configure software for the master node: `ansible-playbook -i ./hosts master_install.yml --ask-become-pass`
 1. Start the local Docker registry: `ansible-playbook -i ./hosts start_registry.yml --ask-become-pass`
@@ -285,6 +295,7 @@ of the master node admin user (the user running the playbook).
 1. Install and configure software for the edge nodes: `ansible-playbook -i ./hosts edge_install.yml`
 1. Initialize the master node as the Kubernetes cluster controller: `ansible-playbook -i ./hosts init_cluster.yml --ask-become-pass`
 1. Add all edge nodes to the cluster: `ansible-playbook -i ./hosts join_cluster.yml`
+1. Set the camera's IP address and destination_host in the files in the `deploy/playbook/host_vars` directory.
 1. Start the EdgeX services: `ansible-playbook -i ./hosts edgex_start.yml`
 
 ## Script Reference

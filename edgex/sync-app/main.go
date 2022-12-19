@@ -17,10 +17,10 @@
 package main
 
 import (
-	"os"
-	"errors"
-	"strings"
 	"encoding/json"
+	"errors"
+	"os"
+	"strings"
 
 	"sync-app/config"
 
@@ -44,15 +44,17 @@ type SyncApp struct {
 }
 
 type Data struct {
-    DeviceName    string `json:"devicename"`
-    ResourceName  string `json:"resourcename"`
-    Value         string `json:"value"`
+	DeviceName   string      `json:"devicename"`
+	ResourceName string      `json:"resourcename"`
+	ValueType    string      `json:"valueType"`
+	Value        string      `json:"value"`
+	BinaryValue  []byte      `json:"binaryValue"`
+	ObjectValue  interface{} `json:"objectValue"`
 }
 
 type SyncFunctions struct {
 	destURL string
 }
-
 
 func NewSyncFunctions(dest string) SyncFunctions {
 	return SyncFunctions{
@@ -125,14 +127,39 @@ func (sync *SyncFunctions) createDataGroup(ctx interfaces.AppFunctionContext, da
 	}
 
 	var dataGroup []Data
+
 	for _, reading := range event.Readings {
-		data := Data {
-			DeviceName:   reading.DeviceName,
-			ResourceName: reading.ResourceName,
-			Value:        reading.Value,
+		var data Data
+		switch reading.ValueType {
+
+		case "Binary":
+			data = Data{
+				DeviceName:   reading.DeviceName,
+				ResourceName: reading.ResourceName,
+				ValueType:    reading.ValueType,
+				BinaryValue:  reading.BinaryValue,
+			}
+
+		case "Object":
+			data = Data{
+				DeviceName:   reading.DeviceName,
+				ResourceName: reading.ResourceName,
+				ValueType:    reading.ValueType,
+				ObjectValue:  reading.ObjectValue,
+			}
+
+		default:
+			data = Data{
+				DeviceName:   reading.DeviceName,
+				ResourceName: reading.ResourceName,
+				ValueType:    reading.ValueType,
+				Value:        reading.Value,
+			}
 		}
+
 		dataGroup = append(dataGroup, data)
 	}
+
 	return true, dataGroup
 }
 
@@ -143,18 +170,30 @@ func (sync *SyncFunctions) SendHTTP(ctx interfaces.AppFunctionContext, data inte
 		lc.Errorf("No data received")
 		return false, errors.New("No data received")
 	}
+
 	datagroup, ok := data.([]Data)
 	if !ok {
 		lc.Errorf("Data received is not the expected '[]Data' type")
 		return false, errors.New("Data received is not the expected '[]Data' type")
 	}
+
 	for _, jsonData := range datagroup {
 		// Forward data to the specified destination
 		lc.Infof("Send %v to %s", jsonData, sync.destURL)
-		sender := transforms.NewHTTPSender("http://"+ sync.destURL +":59986/api/v2/resource/sample-json/json", "application/json", false)
-		sendData, _ := json.Marshal(jsonData)
-		sender.HTTPPost(ctx, sendData)
-	}
-	return false, data
-}
 
+		switch jsonData.ValueType {
+
+		case "Binary":
+			sender := transforms.NewHTTPSender("http://"+sync.destURL+":59986/api/v2/resource/sample-image/jpeg", "image/jpeg", false)
+			sendData := jsonData.BinaryValue
+			sender.HTTPPost(ctx, sendData)
+
+		default:
+			sender := transforms.NewHTTPSender("http://"+sync.destURL+":59986/api/v2/resource/sample-json/json", "application/json", false)
+			sendData, _ := json.Marshal(jsonData)
+			sender.HTTPPost(ctx, sendData)
+		}
+
+	}
+	return true, data
+}

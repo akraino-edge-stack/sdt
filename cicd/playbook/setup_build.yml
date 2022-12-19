@@ -1,11 +1,28 @@
 ---
-- hosts: localhost
-  connection: local
+- hosts: master
+  vars_files:
+    - ../../deploy/playbook/group_vars/all/master.yml
+  tasks:
+    - name: Get the Docker registry certificate
+      # NOTE: start_registry must have been run at least once to create
+      # the certificate
+      ansible.builtin.slurp:
+        src: /etc/docker/certs.d/{{ registry_name }}/registry.crt
+      register: registry_cert
+    - name: Get the Docker CA certificate
+      # NOTE: start_registry must have been run at least once to create
+      # the certificate
+      ansible.builtin.slurp:
+        src: /usr/local/share/ca-certificates/master.crt
+      register: ca_cert
+
+- hosts: build
   vars:
     # go_url: https://golang.org/dl/
     go_url: https://dl.google.com/go/
     go_pkg: go1.16.10.linux-amd64.tar.gz
     go_dst: /usr/local
+    deploy_name: "{{ query('inventory_hostnames', 'deploy') }}"
   vars_files:
     # Pick up master_ip and registry_name from deploy playbook folder
     - ../../deploy/playbook/group_vars/all/master.yml
@@ -37,18 +54,15 @@
         groups: docker
         update_password: on_create
     - name: Install Docker for Python # required for community.docker
+      become: true
       pip:
         state: present
         name: docker
-    - name: Test if community.docker is installed
-      stat:
-        path: ~/.ansible/collections/ansible_collections/community/docker/MANIFEST.json
-      register: docker_collection
-    - name: Install the community.docker collection
-      # Required for pushing built images to the registry
-      command:
-        cmd: ansible-galaxy collection install community.docker
-      when: not docker_collection.stat.exists
+    - name: Install docker-copyedit # required to build shim-security-bootstrapper
+      become: true
+      pip:
+        state: present
+        name: docker-copyedit
 
     - name: Download Go
       # Not strictly necessary if only containers are built
@@ -82,6 +96,7 @@
         path: "~/edgexfoundry"
         state: directory
 
+    # This is required so we can push images to the Docker registry
     - name: Add master node to /etc/hosts (if master is not hostname)
       become: true
       ansible.builtin.lineinfile:
@@ -89,8 +104,59 @@
         state: present
         create: yes
         backup: yes
-        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+master"
         line: "{{ master_ip }} master"
         insertbefore: BOF
-      when: (ansible_facts['nodename'] != "master")
+      when: (ansible_facts['nodename'] != 'master')
+    - name: Add deploy node to /etc/hosts (if deploy is not hostname)
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        state: present
+        create: yes
+        backup: yes
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+{{ deploy_name[0] }}"
+        line: "{{ hostvars[deploy_name[0]]['ip'] }} {{ deploy_name[0] }}"
+        insertbefore: BOF
+      when: (ansible_facts['nodename'] != deploy_name[0])
+    - name: Make sure certificate directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/docker/certs.d/{{ registry_name }}
+        state: directory
+        mode: '0755'
+    - name: Copy the registry certificate
+      become: true
+      ansible.builtin.copy:
+        # NOTE: This assumes there is only one master
+        content: "{{ hostvars[groups['master'][0]].registry_cert.content | b64decode }}"
+        dest: /etc/docker/certs.d/{{ registry_name }}/registry.crt
+    - name: Copy the CA certificate
+      become: true
+      ansible.builtin.copy:
+        # NOTE: This assumes there is only one master
+        content: "{{ hostvars[groups['master'][0]].ca_cert.content | b64decode }}"
+        dest: /usr/local/share/ca-certificates/master.crt
+    - name: Enable the CA certificate
+      become: true
+      ansible.builtin.command:
+        cmd: "update-ca-certificates"
+    - name: Restart the docker service
+      become: true
+      service:
+        name: docker
+        state: restarted
+    - name: Install JRE
+      # JRE is a prerequisite for Jenkins
+      become: true
+      apt:
+        pkg:
+          - default-jre
+    - name: Install Robot Framework and libraries
+      # NOTE: Jenkins Robot Framework plugin should be installed seperately
+      become: true
+      pip:
+        name:
+          - robotframework
+          - robotframework-sshlibrary
 

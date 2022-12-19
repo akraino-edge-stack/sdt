@@ -9,7 +9,7 @@ extension is also required. These components can be installed using pip:
 sudo pip install robotframework robotframework-sshlibrary
 ```
 
-The `cicd/playbook/setup_cicd.yml` playbook does this automatically.
+The `cicd/playbook/setup_build.yml` playbook does this automatically.
 
 Configure the variables in `common.resource` to match your environment if
 you plan to run the test scripts directly. If you are running the scripts

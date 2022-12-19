@@ -6,3 +6,29 @@ all:
       ansible_user: edge
       ansible_ssh_private_key_file: ~/.ssh/edge
       ansible_become_password: password
+  children:
+    # This is required so we can get Docker CA certificate from master node when setting build node
+    master:
+      hosts:
+        sdt-master:
+    # This is required so we can use script to setup build node on deploy node
+    build:
+      hosts:
+        sdt-build:
+          ip: 192.168.10.203
+      vars:
+        ansible_user: sdt-admin
+        ansible_ssh_private_key_file: ~/.ssh/lfedge_build
+    # This is required so we can use script to setup cicd node on deploy node
+    cicd:
+      hosts:
+        sdt-cicd:
+          ip: 192.168.10.200
+      vars:
+        ansible_user: sdt-admin
+        ansible_ssh_private_key_file: ~/.ssh/lfedge_cicd
+    # This is mainly used by robot framework scripts in cicd/tests/ directory
+    deploy:
+      hosts:
+        sdt-deploy:
+          ip: 192.168.10.231

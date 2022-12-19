@@ -1,3 +1,5 @@
-device_virtual: false
-device_lora: true
+device_virtual: true
+device_lora: false
 sync_app: true
+device_camera: true
+image_app: true

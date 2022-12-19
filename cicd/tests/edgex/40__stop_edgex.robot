@@ -9,6 +9,6 @@ Execute Command
     ${rc}=                     Execute Playbook    edgex_stop.yml
     Should Be Equal            ${rc}               ${0}
 Wait Until All Pods Deleting
-    ${output}=                 Execute Command     kubectl get pods
+    ${output}=                 Kubectl             get pods
     ${lc}=                     Get Line Count      ${output}
     Should Be Equal            ${lc}               ${0}              

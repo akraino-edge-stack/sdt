@@ -1,0 +1,7 @@
+camera_name: Camera001
+camera_ip: 192.168.2.10
+camera_devices_file: /opt/lfedge/volumes/edgex/devices/device-camera/camera.toml
+device_name: Camera001
+resource_name: OnvifSnapshot
+destination_host: edgex-jet04
+sync_app_res_file: /opt/lfedge/volumes/sync_app/res/configuration.toml

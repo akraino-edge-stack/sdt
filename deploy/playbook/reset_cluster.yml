@@ -1,6 +1,5 @@
 ---
 - hosts: master
-  connection: local
   vars:
     cni_interfaces:
       - cni0

@@ -2,19 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM edgexfoundry/security-bootstrapper-arm64:2.1.0 AS original
-FROM --platform=linux/arm64 alpine:3.14
+FROM shim-security-bootstrapper-arm64:base
 LABEL license='SPDX-License-Identifier: Apache-2.0' \
       copyright='Copyright (c) 2021 Intel Corporation'
 
-RUN apk add --update --no-cache dumb-init su-exec
-
-ENV SECURITY_INIT_DIR /edgex-init
-RUN mkdir -p ${SECURITY_INIT_DIR}
-WORKDIR ${SECURITY_INIT_DIR}
-
-# copy all entrypoint scripts and config folder
-COPY --from=original ${SECURITY_INIT_DIR}/ .
+WORKDIR /edgex-init
 
 # Workaround for Kong docker file
 RUN sed -i -e 's|/usr/local/kong/kong.yml|/tmp/kong/kong.yml|g' ./kong_wait_install.sh
@@ -27,9 +19,6 @@ RUN sed -i 's|exec /edgex/security-proxy-setup --init=true|/edgex/security-proxy
 RUN sed -i -e '2 i cp /kuiper/etc/sources/* /tmp/sources' ./kuiper_wait_install.sh
 RUN sed -i -e '3 i rm -rf /kuiper/etc/sources' ./kuiper_wait_install.sh
 RUN sed -i -e '4 i ln -s /tmp/sources /kuiper/etc/sources' ./kuiper_wait_install.sh
-
-COPY --from=original /Attribution.txt /
-COPY --from=original /entrypoint.sh /
 
 RUN sed -i -e '2 i cp -Rp /edgex-init/* /tmp/edgex-init' /entrypoint.sh
 

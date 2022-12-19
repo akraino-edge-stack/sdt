@@ -6,10 +6,10 @@ Suite Teardown    Close All Connections
 
 *** Test Cases ***
 Start Docker registry
-    ${output}=            Execute Command       docker ps
+    ${output}=            Execute Command       ssh master docker ps
     Should Not Contain    ${output}             registry
     ${rc}=                Execute Playbook      start_registry.yml
     Should Be Equal       ${rc}                 ${0}
-    ${output}=            Execute Command       docker ps
+    ${output}=            Execute Command       ssh master docker ps
     Should Contain        ${output}             registry
 

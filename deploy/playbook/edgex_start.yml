@@ -21,8 +21,29 @@
         dest: "{{ mqtt_secrets_file }}"
         mode: '0666'
 
+    - name: Add camera secrets
+      become: true
+      ansible.builtin.copy:
+        content: "{{ lookup('file','edgex/camera/secrets.json') | replace('USERNAME_PLACE_HOLDER',camera_user) | replace('PASSWORD_PLACE_HOLDER',camera_pwd) }}"
+        dest: "{{ camera_secrets_file }}"
+        mode: '0666'
+
+    - name: Add camera devices config
+      become: true
+      ansible.builtin.copy:
+        content: "{{ lookup('file','devices/camera.toml') | replace('DEVICE_NAME_PLACE_HOLDER',camera_name) | replace('CAMERA_IP_PLACE_HOLDER',camera_ip) }}"
+        dest: "{{ camera_devices_file }}"
+        mode: '0666'
+
+    - name: Add sync app config
+      become: true
+      ansible.builtin.copy:
+        content: "{{ lookup('file','app_res/configuration_sync-app.toml') | replace('DEVICE_NAME_PLACE_HOLDER',device_name) | replace('RESOURCE_NAME_PLACE_HOLDER',resource_name) | replace('DESTINATION_HOST_PLACE_HOLDER',destination_host) }}"
+        dest: "{{ sync_app_res_file }}"
+        mode: '0666'
+
+
 - hosts: master
-  connection: local
   vars:
     edge_nodes: "{{ query('inventory_hostnames', 'edge_nodes') }}"
     kube_policies: "{{ lookup('fileglob','../../edgex/policies/*.yaml', wantlist=true) }}"
@@ -118,6 +139,20 @@
         new_content: "{{ base_deploy[item] | replace('# sync-app ','') }}"
       loop: "{{ kube_deployments }}"
       when: sync_app
+    - name: Enable device-camera
+      ansible.builtin.set_fact:
+        base_deploy: "{{ base_deploy | combine({item: new_content}) }}"
+      vars:
+        new_content: "{{ base_deploy[item] | replace('# device-camera ','') }}"
+      loop: "{{ kube_deployments }}"
+      when: device_camera
+    - name: Enable image-app
+      ansible.builtin.set_fact:
+        base_deploy: "{{ base_deploy | combine({item: new_content}) }}"
+      vars:
+        new_content: "{{ base_deploy[item] | replace('# image-app ','') }}"
+      loop: "{{ kube_deployments }}"
+      when: image_app
     - name: Create per-node deployments
       # Name per-node items based on the node
       ansible.builtin.set_fact:

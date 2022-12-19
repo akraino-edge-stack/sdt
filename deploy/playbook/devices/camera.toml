@@ -1,0 +1,40 @@
+# Pre-defined Devices
+[[DeviceList]]
+Name = "DEVICE_NAME_PLACE_HOLDER"
+ProfileName = "camera"
+Description = "H.VIEW camera"
+Location = "foo"
+  [DeviceList.Protocols]
+    [DeviceList.Protocols.HTTP]
+    Address = "CAMERA_IP_PLACE_HOLDER"
+    # Assign AuthMethod to "digest" | "usernamepassword" | "none"
+    # AuthMethod specifies the authentication method used when
+    # requesting still images from the URL returned by the ONVIF
+    # "GetSnapshotURI" command.  All ONVIF requests will be
+    # carried out using digest auth.
+    AuthMethod = "digest"
+    CredentialsPath = "credentials001"
+  [[DeviceList.AutoEvents]]
+    Interval   = "60s"
+    OnChange   = false
+    SourceName = "OnvifSnapshot"
+# If having more than one camera, uncomment the following config settings
+#[[DeviceList]]
+#Name = "Camera002"
+#ProfileName = "camera"
+#Description = "H.VIEW camera"
+#Location = "bar"
+#  [DeviceList.Protocols]
+#    [DeviceList.Protocols.HTTP]
+#    Address = "CAMERA002_IP_PLACE_HOLDER"
+     # Assign AuthMethod to "digest | ""usernamepassword" | "none"
+     # AuthMethod specifies the authentication method used when
+     # requesting still images from the URL returned by the ONVIF
+     # "GetSnapshotURI" command.  All ONVIF requests will be
+     # carried out using digest auth.
+#    AuthMethod = "digest"
+#    CredentialsPath = "credentials002"
+#  [[DeviceList.AutoEvents]]
+#    Interval   = "60s"
+#    OnChange   = false
+#    SourceName = "OnvifSnapshot"

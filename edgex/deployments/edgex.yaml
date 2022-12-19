@@ -34,7 +34,7 @@ spec:
             runAsGroup: 0
           env:
             - name: ADD_REGISTRY_ACL_ROLES
-              value: app-mqtt-export,device-lora,sync-app
+              value: app-mqtt-export,device-lora,sync-app,device-camera,image-app
             - name: API_GATEWAY_HOST
               value: localhost
             - name: API_GATEWAY_STATUS_PORT
@@ -1069,6 +1069,94 @@ spec:
         # device-lora     privileged: true
         # device-lora   resources: {}
 
+        # Automatically uncommented if device-camera is enabled
+        # device-camera - name: edgex-device-camera
+        # device-camera   args:
+        # device-camera     - /device-camera
+        # device-camera     - -cp=consul.http://localhost:8500
+        # device-camera     - --registry
+        # device-camera     - --confdir=/res
+        # device-camera   command: 
+        # device-camera     - /edgex-init/ready_to_run_wait_install.sh
+        # device-camera   env:
+        # device-camera     - name: API_GATEWAY_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: API_GATEWAY_STATUS_PORT
+        # device-camera       value: "8100"
+        # device-camera     - name: CLIENTS_CORE_COMMAND_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: CLIENTS_CORE_DATA_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: CLIENTS_CORE_METADATA_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: DATABASES_PRIMARY_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: EDGEX_SECURITY_SECRET_STORE
+        # device-camera       value: "true"
+        # device-camera     - name: PROXY_SETUP_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: SECRETSTORE_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: SECRETSTORE_PORT
+        # device-camera       value: "8200"
+        # device-camera     - name: STAGEGATE_BOOTSTRAPPER_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+        # device-camera       value: "54321"
+        # device-camera     - name: STAGEGATE_DATABASE_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: STAGEGATE_DATABASE_PORT
+        # device-camera       value: "6379"
+        # device-camera     - name: STAGEGATE_DATABASE_READYPORT
+        # device-camera       value: "6379"
+        # device-camera     - name: STAGEGATE_KONGDB_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: STAGEGATE_KONGDB_PORT
+        # device-camera       value: "5432"
+        # device-camera     - name: STAGEGATE_KONGDB_READYPORT
+        # device-camera       value: "54325"
+        # device-camera     - name: STAGEGATE_READY_TORUNPORT
+        # device-camera       value: "54329"
+        # device-camera     - name: STAGEGATE_REGISTRY_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: STAGEGATE_REGISTRY_PORT
+        # device-camera       value: "8500"
+        # device-camera     - name: STAGEGATE_REGISTRY_READYPORT
+        # device-camera       value: "54324"
+        # device-camera     - name: STAGEGATE_SECRETSTORESETUP_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+        # device-camera       value: "54322"
+        # device-camera     - name: STAGEGATE_WAITFOR_TIMEOUT
+        # device-camera       value: 60s
+        # device-camera     - name: MESSAGEQUEUE_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: REGISTRY_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: SERVICE_HOST
+        # device-camera       value: localhost
+        # device-camera     - name: SERVICE_SERVERBINDADDR
+        # device-camera       value: 0.0.0.0
+        # device-camera   image: edgexfoundry/device-camera:latest
+        # device-camera   ports:
+        # device-camera     - containerPort: 59985
+        # device-camera   volumeMounts:
+        # device-camera     - mountPath: /edgex-init
+        # device-camera       name: edgex-init
+        # device-camera       # readOnly: true
+        # device-camera     - mountPath: /tmp/edgex/secrets/device-camera
+        # device-camera       name: device-camera-secrets
+        # device-camera       # readOnly: true
+        # device-camera     - mountPath: /res/devices
+        # device-camera       name: device-camera-devices
+        # device-camera       # readOnly: true
+        # device-camera   resources: {}
+
+
         - name: edgex-support-notifications
           args:
             - /support-notifications
@@ -1321,7 +1409,90 @@ spec:
         # sync-app     - mountPath: /tmp/edgex/secrets/sync-app
         # sync-app       name: sync-app-secrets
         # sync-app       readOnly: true
+        # sync-app     - mountPath: /res
+        # sync-app       name: sync-app-res
+        # sync-app       readOnly: true
         # sync-app   resources: {}
+
+        # Automatically uncommented if image-app is enabled
+        # image-app - name: image-app
+        # image-app   args:
+        # image-app     - /image-app
+        # image-app     - -cp=consul.http://localhost:8500
+        # image-app     - --registry
+        # image-app     - --confdir=/res
+        # image-app   command:
+        # image-app     - /edgex-init/ready_to_run_wait_install.sh
+        # image-app   env:
+        # image-app     - name: API_GATEWAY_HOST
+        # image-app       value: localhost
+        # image-app     - name: API_GATEWAY_STATUS_PORT
+        # image-app       value: "8100"
+        # image-app     - name: CLIENTS_CORE_COMMAND_HOST
+        # image-app       value: localhost
+        # image-app     - name: CLIENTS_CORE_DATA_HOST
+        # image-app       value: localhost
+        # image-app     - name: CLIENTS_CORE_METADATA_HOST
+        # image-app       value: localhost
+        # image-app     - name: CLIENTS_SUPPORT_NOTIFICATIONS_HOST
+        # image-app       value: localhost
+        # image-app     - name: CLIENTS_SUPPORT_SCHEDULER_HOST
+        # image-app       value: localhost
+        # image-app     - name: DATABASES_PRIMARY_HOST
+        # image-app       value: localhost
+        # image-app     - name: DATABASE_HOST
+        # image-app       value: localhost
+        # image-app     - name: EDGEX_SECURITY_SECRET_STORE
+        # image-app       value: "true"
+        # image-app     - name: SERVICE_HOST
+        # image-app       value: localhost
+        # image-app     - name: STAGEGATE_BOOTSTRAPPER_HOST
+        # image-app       value: localhost
+        # image-app     - name: STAGEGATE_BOOTSTRAPPER_STARTPORT
+        # image-app       value: "54321"
+        # image-app     - name: STAGEGATE_DATABASE_HOST
+        # image-app       value: localhost
+        # image-app     - name: STAGEGATE_DATABASE_PORT
+        # image-app       value: "6379"
+        # image-app     - name: STAGEGATE_DATABASE_READYPORT
+        # image-app       value: "6379"
+        # image-app     - name: STAGEGATE_KONGDB_HOST
+        # image-app       value: localhost
+        # image-app     - name: STAGEGATE_KONGDB_PORT
+        # image-app       value: "5432"
+        # image-app     - name: STAGEGATE_KONGDB_READYPORT
+        # image-app       value: "54325"
+        # image-app     - name: STAGEGATE_READY_TORUNPORT
+        # image-app       value: "54329"
+        # image-app     - name: STAGEGATE_REGISTRY_HOST
+        # image-app       value: localhost
+        # image-app     - name: STAGEGATE_REGISTRY_PORT
+        # image-app       value: "8500"
+        # image-app     - name: STAGEGATE_REGISTRY_READYPORT
+        # image-app       value: "54324"
+        # image-app     - name: STAGEGATE_SECRETSTORESETUP_HOST
+        # image-app       value: localhost
+        # image-app     - name: STAGEGATE_SECRETSTORESETUP_TOKENS_READYPORT
+        # image-app       value: "54322"
+        # image-app     - name: STAGEGATE_WAITFOR_TIMEOUT
+        # image-app       value: 60s
+        # image-app     - name: REGISTRY_HOST
+        # image-app       value: localhost
+        # image-app     - name: SERVICE_HOST
+        # image-app       value: localhost
+        # image-app     - name: SERVICE_SERVERBINDADDR
+        # image-app       value: 0.0.0.0
+        # image-app   image: edgexfoundry/image-app:latest
+        # image-app   ports:
+        # image-app     - containerPort: 59741
+        # image-app   volumeMounts:
+        # image-app     - mountPath: /edgex-init
+        # image-app       name: edgex-init
+        # image-app       # readOnly: true
+        # image-app     - mountPath: /tmp/edgex/secrets/image-app
+        # image-app       name: image-app-secrets
+        # image-app       # readOnly: true
+        # image-app   resources: {}
 
         - name: edgex-kong-db
           command: 
@@ -1405,7 +1576,7 @@ spec:
             readOnlyRootFilesystem: true
           env:
             - name: ADD_PROXY_ROUTE
-              value: "device-virtual.http://localhost:59900, device-rest.http://localhost:59986, device-lora.http://localhost:59999, sync-app.http://localhost:59740"
+              value: "device-virtual.http://localhost:59900, device-rest.http://localhost:59986, device-lora.http://localhost:59999, sync-app.http://localhost:59740, device-camera.http://localhost:59985, image-app.http://localhost:59741"
             - name: API_GATEWAY_HOST
               value: localhost
             - name: API_GATEWAY_STATUS_PORT
@@ -1488,9 +1659,9 @@ spec:
             runAsGroup: 0
           env:
             - name: ADD_KNOWN_SECRETS
-              value: redisdb[app-rules-engine],redisdb[device-virtual],redisdb[app-mqtt-export],redisdb[device-rest],redisdb[device-lora],redisdb[sync-app]
+              value: redisdb[app-rules-engine],redisdb[device-virtual],redisdb[app-mqtt-export],redisdb[device-rest],redisdb[device-lora],redisdb[sync-app],redisdb[device-camera],redisdb[image-app]
             - name: ADD_SECRETSTORE_TOKENS
-              value: "app-mqtt-export,device-lora,sync-app"
+              value: "app-mqtt-export,device-lora,sync-app,device-camera,image-app"
             - name: API_GATEWAY_HOST
               value: localhost
             - name: API_GATEWAY_STATUS_PORT
@@ -1845,6 +2016,12 @@ spec:
         - name: device-lora-secrets
           persistentVolumeClaim:
             claimName: device-lora-secrets-NODENAME
+        - name: device-camera-devices
+          persistentVolumeClaim:
+            claimName: device-camera-devices-NODENAME
+        - name: device-camera-secrets
+          persistentVolumeClaim:
+            claimName: device-camera-secrets-NODENAME
         - name: notifications-secrets
           persistentVolumeClaim:
             claimName: notifications-secrets-NODENAME
@@ -1857,6 +2034,13 @@ spec:
         # sync-app - name: sync-app-secrets
         # sync-app   persistentVolumeClaim:
         # sync-app     claimName: sync-app-secrets-NODENAME
+        # sync-app - name: sync-app-res
+        # sync-app   persistentVolumeClaim:
+        # sync-app     claimName: sync-app-res-NODENAME
+        # Automatically uncommented if image-app is enabled
+        # image-app - name: image-app-secrets
+        # image-app   persistentVolumeClaim:
+        # image-app     claimName: image-app-secrets-NODENAME
         - name: postgres-config
           persistentVolumeClaim:
             claimName: postgres-config-NODENAME

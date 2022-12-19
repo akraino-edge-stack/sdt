@@ -34,7 +34,7 @@ Sending: {"temp": 20.2, "hum": 42.0}
 ```
 
 Because the protocol used to communicate with the sensor is somewhat
-unreliable, you may see lines like those below. The script will attept
+unreliable, you may see lines like those below. The script will attempt
 the reading again after a delay.
 
 ```

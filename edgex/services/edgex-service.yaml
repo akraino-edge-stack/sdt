@@ -64,6 +64,10 @@ spec:
     port: 59740
     targetPort: 59740
     protocol: TCP
+  - name: image-app
+    port: 59741
+    targetPort: 59741
+    protocol: TCP
   - name: device-rest
     port: 59986
     targetPort: 59986
@@ -71,6 +75,10 @@ spec:
   - name: device-lora
     port: 59999
     targetPort: 59999
+    protocol: TCP
+  - name: device-camera
+    port: 59985
+    targetPort: 59985
     protocol: TCP
   - name: kong-db
     port: 5432

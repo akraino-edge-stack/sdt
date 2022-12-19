@@ -1,6 +1,5 @@
 ---
-- hosts: localhost
-  connection: local
+- hosts: cicd
   tasks: 
     - name: Stop Jenkins service
       become: true

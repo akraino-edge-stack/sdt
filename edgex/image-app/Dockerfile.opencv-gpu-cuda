@@ -1,0 +1,87 @@
+#
+# From https://github.com/hybridgroup/gocv/blob/release/Dockerfile.opencv-gpu-cuda-10
+# Modified to customize options and for proxy support.
+#
+# to build this docker image:
+#   docker build -f Dockerfile.opencv-gpu-cuda-10 -t gocv/opencv:4.6.0-gpu-cuda-10 .
+# FROM nvidia/cuda:10.2-cudnn8-devel AS opencv-gpu-base
+FROM --platform=linux/arm64 nvcr.io/nvidia/l4t-cuda:10.2.460-runtime AS opencv-gpu-base
+
+# Proxy support
+COPY 90proxy /etc/apt/apt.conf.d
+
+# The apt software registory address in cuda.list can't be accessed,
+# and the address is not required for deployment, so delete it.
+RUN rm /etc/apt/sources.list.d/cuda.list
+
+# needed for cuda repo key rotation. see:
+# https://forums.developer.nvidia.com/t/notice-cuda-linux-repository-key-rotation/212771
+#
+# RUN apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
+# Doesn't seem to be necessary anymore
+# RUN apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt update && apt install -y --no-install-recommends tzdata
+RUN apt install -y --no-install-recommends \
+            git build-essential cmake pkg-config unzip libgtk2.0-dev \
+            wget curl ca-certificates libcurl4-openssl-dev libssl-dev \
+            libavcodec-dev libavformat-dev libswscale-dev libtbb2 libtbb-dev \
+            libjpeg-dev libpng-dev libtiff-dev libdc1394-22-dev && \
+            rm -rf /var/lib/apt/lists/*
+
+ARG OPENCV_VERSION="4.6.0"
+ENV OPENCV_VERSION $OPENCV_VERSION
+
+RUN curl -Lo opencv.zip https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip && \
+    unzip -q opencv.zip && \
+    curl -Lo opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/${OPENCV_VERSION}.zip && \
+    unzip -q opencv_contrib.zip && \
+    rm opencv.zip opencv_contrib.zip && \
+    cd opencv-${OPENCV_VERSION} && \
+    mkdir build && cd build && \
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+            -D WITH_IPP=OFF \
+            -D WITH_OPENGL=OFF \
+            -D WITH_QT=OFF \
+            -D CMAKE_INSTALL_PREFIX=/usr/local \
+            -D CMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs \
+            -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib-${OPENCV_VERSION}/modules \
+            -D OPENCV_ENABLE_NONFREE=ON \
+            -D WITH_JASPER=OFF \
+            -D BUILD_DOCS=OFF \
+            -D BUILD_EXAMPLES=OFF \
+            -D BUILD_TESTS=OFF \
+            -D BUILD_PERF_TESTS=OFF \
+            -D BUILD_opencv_java=NO \
+            -D BUILD_opencv_python=NO \
+            -D BUILD_opencv_python2=NO \
+            -D BUILD_opencv_python3=NO \
+            -D WITH_TBB=ON \
+            -D WITH_CUDA=ON \
+            -D ENABLE_FAST_MATH=1 \
+            -D CUDA_FAST_MATH=1 \
+            -D WITH_CUBLAS=1 \
+            -D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda/ \
+            -D BUILD_opencv_cudacodec=OFF \
+            -D WITH_CUDNN=OFF \
+            -D OPENCV_DNN_CUDA=OFF \
+            -D CUDA_GENERATION=Auto \
+            -D OPENCV_GENERATE_PKGCONFIG=ON .. && \
+    make -j $(nproc --all) && \
+    make preinstall && make install && ldconfig && \
+    cd / && rm -rf opencv*
+
+# install golang here
+FROM opencv-gpu-base AS opencv-gpu-golang
+
+COPY set_proxy /tmp/set_proxy
+
+ENV GO_RELEASE=1.18.3
+RUN /bin/bash -c "source /tmp/set_proxy && \
+    wget https://dl.google.com/go/go${GO_RELEASE}.linux-arm64.tar.gz && \
+    tar xfv go${GO_RELEASE}.linux-arm64.tar.gz -C /usr/local && \
+    rm go${GO_RELEASE}.linux-arm64.tar.gz /tmp/set_proxy"
+ENV PATH="${PATH}:/usr/local/go/bin"
+
+CMD ["go version"]

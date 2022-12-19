@@ -7,8 +7,8 @@ directory can be used to copy these jobs into Jenkins or export all the
 job configurations from Jenkins into this directory.
 
 In order to use these jobs there must be appropriate credentials configured
-in Jenkins and a SSH public key installed on the deploy server so that Jenkins
-(actually the Robot Framework) can log into the deploy server to run commands.
+in Jenkins and a SSH public key installed on the build and deploy server, 
+so that Jenkins can log into the build server to run the robot test scripts.
 
 ## Required Plugins
 
@@ -36,8 +36,8 @@ changed by editing the `DEPLOY_HOST` variable in the
 
 ## SSH Key
 
-Create a key pair for Jenkins to use to log in to the deploy server, for
-example with the following command:
+Create a key pair for Jenkins to use to log in to the build and deploy server, 
+for example with the following command:
 
 ```
 ssh-keygen -t rsa -f lfedge_deploy
@@ -50,7 +50,7 @@ of the file, including the `-----BEGIN OPENSSH PRIVATE KEY-----` and
 `-----END OPENSSH PRIVATE KEY-----` lines). Add the content of the
 `lfedge_deploy.pub` file (a single line beginning with `ssh-rsa` and ending
 with `username@hostname`) to the user's `~/.ssh/authorized_keys` on the
-deploy server.
+build and deploy servers.
 
 ## Git Repository
 

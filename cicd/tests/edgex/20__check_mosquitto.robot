@@ -6,12 +6,12 @@ Suite Teardown    Close All Connections
 
 *** Test Cases ***
 Receive MQTT messages from edge nodes
-    ${output}=             Execute Command    kubectl get pod -o custom-columns=NODE:.spec.nodeName
+    ${output}=             Kubectl            get pod -o custom-columns=NODE:.spec.nodeName
     Should Match Regexp    ${output}          ^NODE
     @{lines}=              Split To Lines     ${output}          1
     FOR                    ${line}            IN                 @{lines}
                            ${node}=           Set Variable       ${line}
                            # FIXME: User/password are raw data
-                           ${output}=         Execute Command    mosquitto_sub -h localhost -t edgex-events-${node} -u edge -P edgemqtt -W 60
+                           ${output}=         Execute Command    ssh master mosquitto_sub -h localhost -t edgex-events-${node} -u edge -P edgemqtt -W 60
                            Should Contain     ${output}          profileName
     END

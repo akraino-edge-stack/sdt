@@ -28,9 +28,9 @@ Host = "localhost"
 # TODO: set this port appropriately,
 #       App service use port assigments 597xx with lower range 00-39 reserved for
 #       app-service-configurable profiles/instances, Rules Engine and examples
-Port = 59740
+Port = 59741
 ServerBindAddr = "" # Leave blank so default to Host value unless different value is needed.
-StartupMsg = "Sync-app Application Service has started"
+StartupMsg = "Image-app Application Service has started"
 MaxResultCount = 0 # Not curently used by App Services.
 MaxRequestSize = 0 # Not curently used by App Services.
 RequestTimeout = "5s"
@@ -62,13 +62,13 @@ Timeout = "30s"
 Type = "vault"
 Host = "localhost"
 Port = 8200
-Path = "sync-app/"
+Path = "image-app/"
 Protocol = "http"
 RootCaCertPath = ""
 ServerName = ""
 SecretsFile = ""
 DisableScrubSecretsFile = false
-TokenFile = "/tmp/edgex/secrets/sync-app/secrets-token.json"
+TokenFile = "/tmp/edgex/secrets/image-app/secrets-token.json"
   [SecretStore.Authentication]
   AuthType = "X-Vault-Token"
 
@@ -111,7 +111,8 @@ Type="edgex-messagebus"
     authmode = "usernamepassword"  # requied for redis messagebus (secure or insecure).
     secretname = "redisdb"
 
-[Sync]
-DeviceNames = "Lora-2"
-ResourceNames = "Temperature"
-DestinationHost = "edgex-jet02"
+[Image]
+ProfileNames = "camera, sample-image"
+DeviceNames = "Camera001, Camera002, sample-image"
+ResourceNames = "OnvifSnapshot, jpeg"
+CrowdedThreshold = 1

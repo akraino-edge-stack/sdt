@@ -6,13 +6,13 @@ Suite Teardown    Close All Connections
 
 *** Test Cases ***
 Stop cluster controller
-    ${output}=                 Execute Command            kubectl get nodes
+    ${output}=                 Kubectl                    get nodes
     Should Match Regexp        ${output}                  ^NAME
     ${lc}=                     Get Line Count             ${output}
     Should Be Equal            ${lc}                      ${2}                 msg='Only the controller node should be configured'
     ${rc}=                     Execute Become Playbook    reset_cluster.yml
     Should Be Equal            ${rc}                      ${0}
     Sleep                      15s
-    ${output}=                 Execute Command            kubectl get nodes
+    ${output}=                 Kubectl                    get nodes
     Should Not Match Regexp    ${output}                  ^NAME
 

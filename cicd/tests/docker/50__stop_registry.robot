@@ -6,10 +6,10 @@ Suite Teardown    Close All Connections
 
 *** Test Cases ***
 Stop Docker registry
-    ${output}=                 Execute Command       docker ps
-    Should Match Regexp        ${output}             registry
+    ${output}=                 Execute Command       ssh master docker ps
+    Should Contain             ${output}             registry
     ${rc}=                     Execute Playbook      stop_registry.yml
     Should Be Equal            ${rc}                 ${0}
-    ${output}=                 Execute Command       docker ps
-    Should Not Match Regexp    ${output}             registry
+    ${output}=                 Execute Command       ssh master docker ps
+    Should Not Contain         ${output}             registry
 

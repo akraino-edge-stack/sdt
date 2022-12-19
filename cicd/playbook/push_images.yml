@@ -1,10 +1,10 @@
 ---
-- hosts: localhost
-  connection: local
+- hosts: build
   vars:
     images:
       - edgexfoundry/sync-app
       - edgexfoundry/device-lora
+      - edgexfoundry/device-camera
       - edgexfoundry/shim-security-bootstrapper
       - edgexfoundry/shim-security-secretstore-setup
       - kong-patched
@@ -49,3 +49,29 @@
       command:
         cmd: "docker manifest rm {{ registry_name }}/{{ item }}"
       loop: "{{ images }}"
+
+    # Currently, image-app based on l4t-base:r32.6.1 only supports arm architecture, 
+    # so the uploading of image and the creation of manifest are separated from the existing services.
+    - name: Push image-app arm64 image to registry
+      community.docker.docker_image:
+        name: "edgexfoundry/image-app-arm64:latest"
+        repository: "{{ registry_name }}/edgexfoundry/image-app-arm64:latest"
+        push: yes
+        source: local
+        force_tag: yes
+    - name: Remove existing local image-app multi-architecture manifest
+      # In case this play failed earlier
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/edgexfoundry/image-app:latest"
+      ignore_errors: yes
+    - name: Create image-app multi-architecture manifest
+      # FIXME: This will update the manifests every time the script runs
+      # whether there is a real change or not.
+      command:
+        cmd: "docker manifest create {{ registry_name }}/edgexfoundry/image-app:latest {{ registry_name }}/edgexfoundry/image-app-arm64:latest"
+    - name: Push image-app multi-architecture manifest
+      command:
+        cmd: "docker manifest push {{ registry_name }}/edgexfoundry/image-app:latest"
+    - name: Remove local image-app multi-architecture manifest
+      command:
+        cmd: "docker manifest rm {{ registry_name }}/edgexfoundry/image-app:latest"

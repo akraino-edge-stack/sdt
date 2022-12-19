@@ -1,6 +1,22 @@
 ---
+- hosts: master
+  tasks:
+    - name: Get the Docker registry certificate
+      # NOTE: start_registry must have been run at least once to create
+      # the certificate
+      ansible.builtin.slurp:
+        src: /etc/docker/certs.d/{{ registry_name }}/registry.crt
+      register: registry_cert
+    - name: Get the Docker CA certificate
+      # NOTE: start_registry must have been run at least once to create
+      # the certificate
+      ansible.builtin.slurp:
+        src: /usr/local/share/ca-certificates/master.crt
+      register: ca_cert
+
 - hosts: edge_nodes
   tasks: 
+    # This is required so we can pull images from the Docker registry
     - name: Add master to /etc/hosts
       become: true
       ansible.builtin.lineinfile:
@@ -8,9 +24,10 @@
         state: present
         create: yes
         backup: yes
-        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]\\.[0-9]/s+master"
+        regexp: "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\s+master"
         line: "{{ master_ip }} master"
         insertbefore: BOF
+
     - name: Install required packages to edge nodes
       become: true
       apt:
@@ -40,18 +57,14 @@
     - name: Copy the registry certificate
       become: true
       ansible.builtin.copy:
-        # NOTE: This assumes the script is running on master
-        # NOTE: start_registry must have been run at least once to create
-        # the certificate
-        src: /etc/docker/certs.d/master:5000/registry.crt
+        # NOTE: This assumes there is only one master
+        content: "{{ hostvars[groups['master'][0]].registry_cert.content | b64decode }}"
         dest: /etc/docker/certs.d/master:5000/registry.crt
     - name: Copy the CA certificate
       become: true
       ansible.builtin.copy:
-        # NOTE: This assumes the script is running on master
-        # NOTE: start_registry must have been run at least once to create
-        # the certificate
-        src: /usr/local/share/ca-certificates/master.crt
+        # NOTE: This assumes there is only one master
+        content: "{{ hostvars[groups['master'][0]].ca_cert.content | b64decode }}"
         dest: /usr/local/share/ca-certificates/master.crt
     - name: Enable the CA certificate
       become: true
@@ -60,7 +73,7 @@
     - name: Configure docker # includes required settings for k8s
       become: true
       ansible.builtin.copy:
-        src: docker/daemon.json
+        src: docker/daemon_edge.json
         dest: /etc/docker/daemon.json
         owner: root
         group: root
@@ -90,9 +103,9 @@
       apt:
         update_cache: yes
         pkg:
-          - kubectl=1.22*
-          - kubelet=1.22*
-          - kubeadm=1.22*
+          - kubectl=1.22.9*
+          - kubelet=1.22.9*
+          - kubeadm=1.22.9*
       # NOTE: The following requirements for k8s are met by default
       # sysctl net.bridge.bridge-nf-call-iptables = 1
       # modprobe br_netfilter

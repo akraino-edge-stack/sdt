@@ -1,4 +1,4 @@
 # TODO: Secure this file
 mqtt_user: edge
-mqtt_pwd: edgemqtt
+mqtt_pwd: password
 mqtt_secrets_file: /opt/lfedge/volumes/edgex/secrets/app-mqtt-export/service-secrets.json

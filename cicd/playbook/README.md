@@ -1,43 +1,18 @@
-# Setup CI/CD host
-
-Assuming you have Ansible installed on an Ubuntu 20.04 host, the playbooks
-in this folder will assist in setting up and configuring the host as a CI/CD
-and Deploy server for the blueprint. To install the latest version of Ansible
-from the Ansible repository, run the following commands:
-
-```
-sudo add-apt-repository ppa:ansible/ansible
-sudo apt install ansible
-```
+# Setup CI/CD Server
 
 The following command should be run by the user with sudo permissions which
 will be running Ansible. As currently configured it will run against the local
 host. When prompted for the "become" password, supply the sudo password for
 the user's account.
-
 ```
 ansible-playbook -i ./hosts setup_cicd.yml --ask-become-pass
 ```
 
 The playbook will perform the following steps:
 
-* Install the latest version of Ansible from the Ansible repository (the
-  version available from the Ubuntu repository does not support the
-  kubernetes.core collection required for some deploy scripts)
+* Install Basic Build Tools
 * Install Jenkins (and the Java runtime it requires)
-* Install Robot Framework and libraries required by test scripts
-* Add the community.docker and kubernetes.core collections to Ansible
-
-NOTE: The Robot Framework plugin should also be added to Jenkins via the
-Jenkins management interface.
-
-NOTE: The script will install the Ansible collections for the user running
-the playbook. It will install other software packages for all users.
-
-NOTE: If Ansible collections are accidentally added to the wrong
-user's account they can be removed by deleting the appropriate directory
-under `~/.ansible/collections/ansible_collections`, e.g.
-`rm -rf ~/.ansible/collections/ansible_collections/community/docker/`
+* Add build server to file /etc/hosts 
 
 ## Jenkins Configuration
 
@@ -89,22 +64,26 @@ results.
 In order to build the custom application and device services, a build
 environment needs to be set up using `setup_build.yml`. This can be done on
 the CI/CD or deploy servers, or on a separate machine (but must be on an
-`x86_64` architecture). The build server must have access to the local
+`x86_64` architecture). In this release, the build environment is on 
+a seprate machine. The build server must have access to the local
 Docker registry (see `deploy/playbook/README.md`). The Docker registry
 name should be configured in `deploy/playbook/group_vars/all`. Run the
-setup script on the build server:
+setup script on the deploy server:
 
 ```
 ansible-playbook -i ./hosts setup_build.yml --ask-become-pass
 ```
 
-The Go language compiler will be installed for all users, using the specific
-version required for EdgeX release 2.1. This will overwrite any Go install
-already in `/usr/local/go`.
+The playbook will perform the following steps:
 
-A folder called `edgexfoundry` will be created in the home directory of
-the user running the setup script. This directory will be used to compile
-the source for applications.
+* Make sure there is an entry for the master node and deploy node in /etc/hosts
+* Install required software packages including Docker and Go and Robot Framework
+* Make sure the user can run Docker commands
+* Configure Docker, including adding the certificates to secure access to the private registry
+* Create the `edgexfoundry` directory
+
+NOTE: The Robot Framework plugin should also be added to Jenkins via the
+Jenkins management interface.
 
 ## ARM Build Server
 
@@ -137,9 +116,8 @@ The SSH private key file must be set up for accessing the build account in
 the same way as the admin account for edge nodes described in
 `deploy/playbook/README.md`.
 
-Generally, you can control the ARM build server from the "main" (x86) build
-server. Run the setup script there:
-
+After the configuration above, you can install the ARM build server by running 
+the following command on the deploy server.
 ```
 ansible-playbook -i ./hosts setup_arm_build.yml
 ```
@@ -148,7 +126,7 @@ ansible-playbook -i ./hosts setup_arm_build.yml
 
 The custom applications can be built using the `build_images.yml`,
 `build_amd64.yml` and `build_arm64.yml` scripts. Note that all of these can
-be run on the main (x86) build server. The `build_arm64.yml` script will log
+be run on the deploy server. The `build_arm64.yml` script will log
 in to the ARM build server via SSH, using the settings in
 `cicd/playbook/hosts`. The `build_images.yml` script is recommended, as it
 does not require a dedicated ARM build server and builds all images. An ARM
@@ -219,4 +197,3 @@ registry.
 | Build ARM applications only | `ansible-playbook -i ./hosts build_arm64.yml` |
 | Push applications to local Docker registry | `ansible-playbook -i ./hosts push_images.yml` |
 | Push x86/amd64 images only | `ansible-playbook -i ./hosts push_amd64_images.yml` |
-

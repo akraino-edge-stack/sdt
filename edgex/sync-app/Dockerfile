@@ -17,14 +17,20 @@
 # Adapted to build sync-app by Fujitsu Limited
 
 #build stage
-ARG BASE=golang:1.16-alpine3.14
+# NOTE: Using Debian bullseye image instead of alpine because of difficulties
+# with apk and proxy settings
+# ARG BASE=golang:1.16-alpine3.14
+ARG BASE=golang:1.16-bullseye
 FROM ${BASE} AS builder
 
-ARG ALPINE_PKG_BASE="make git gcc libc-dev libsodium-dev zeromq-dev"
-ARG ALPINE_PKG_EXTRA=""
+# ARG ALPINE_PKG_BASE="make git gcc libc-dev libsodium-dev zeromq-dev"
+ARG PKG_BASE="make git gcc libc-dev libsodium-dev libzmq3-dev"
+ARG PKG_EXTRA=""
 
-RUN sed -e 's/dl-cdn[.]alpinelinux.org/nl.alpinelinux.org/g' -i~ /etc/apk/repositories
-RUN apk add --update --no-cache ${ALPINE_PKG_BASE} ${ALPINE_PKG_EXTRA}
+# RUN apk add --update --no-cache ${PKG_BASE} ${PKG_EXTRA}
+COPY 90proxy /etc/apt/apt.conf.d
+RUN apt update
+RUN apt install -y ${PKG_BASE} ${PKG_EXTRA}
 WORKDIR /app
 
 COPY go.mod .
@@ -37,13 +43,18 @@ ARG MAKE="make build"
 RUN $MAKE
 
 #final stage
-FROM alpine:3.14
+# FROM alpine:3.14
+FROM debian:bullseye
 LABEL license='SPDX-License-Identifier: Apache-2.0' \
   copyright='Copyright (c) 2022: Fujitsu Limited'
 LABEL Name=sync-app Version=${VERSION}
 
 # dumb-init is required as security-bootstrapper uses it in the entrypoint script
-RUN apk add --update --no-cache ca-certificates zeromq dumb-init
+# RUN apk add --update --no-cache ca-certificates zeromq dumb-init
+COPY --from=builder /etc/apt/apt.conf.d/90proxy /etc/apt/apt.conf.d/90proxy
+RUN apt update
+RUN apt install -y ca-certificates libzmq5 dumb-init wget
+RUN rm /etc/apt/apt.conf.d/90proxy
 
 COPY --from=builder /app/res/ /res/
 COPY --from=builder /app/sync-app /sync-app
