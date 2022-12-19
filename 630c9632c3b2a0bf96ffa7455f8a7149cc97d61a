@@ -33,6 +33,23 @@
       "message": "承認します。",
       "revId": "630c9632c3b2a0bf96ffa7455f8a7149cc97d61a",
       "serverId": "4cada01b-0314-4fe0-84a1-f9ddc89863f9"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "713fee2d_cd8068ed",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 500
+      },
+      "writtenOn": "2022-12-19T02:18:55Z",
+      "side": 1,
+      "message": "再承認します",
+      "revId": "630c9632c3b2a0bf96ffa7455f8a7149cc97d61a",
+      "serverId": "4cada01b-0314-4fe0-84a1-f9ddc89863f9"
     }
   ]
 }
